@@ -31,3 +31,5 @@ pip install flake8 black
 pip install pre-commit
 
 pre-commit install
+
+pip install fastapi pydantic
