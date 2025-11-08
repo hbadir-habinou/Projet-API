@@ -2,12 +2,25 @@
 import json
 import uuid  # noqa: F401
 from fastapi import FastAPI, HTTPException  # noqa: F401
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles  # noqa: F401
 from pydantic import BaseModel
-from typing import List  # noqa: F401
+from typing import List, Optional  # noqa: F401
 
 # from typing import List
 
-app = FastAPI()
+app = FastAPI(
+    title="ProjetAPI Étudiant",
+    description="Une API pour gérer les soumissions de projets étudiants.",
+    version="1.0.0",
+)
+
+
+@app.get("/", response_class=HTMLResponse)
+async def read_root():
+    with open("index.html") as f:
+        return HTMLResponse(content=f.read(), status_code=200)
+
 
 # --- Stockage des données ---
 DB_FILE = "db.json"
@@ -34,7 +47,7 @@ class Project(BaseModel):
     studentName: str
     course: str
     githubUrl: str
-    grade: int = None  # Optionnel au début
+    grade: Optional[int] = None
 
 
 class ProjectCreate(BaseModel):

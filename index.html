@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interface de Test pour ProjetAPI</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 2rem;
+            background-color: #f7f7f7;
+            color: #333;
+        }
+
+        h1,
+        h2 {
+            color: #005a9c;
+            border-bottom: 2px solid #ddd;
+            padding-bottom: 10px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .api-section {
+            background-color: #fdfdfd;
+            border: 1px solid #eee;
+            border-radius: 5px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-top: 1rem;
+        }
+
+        input[type="text"],
+        input[type="number"] {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin-top: 5px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 1rem;
+            font-size: 1rem;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        pre {
+            background-color: #2d2d2d;
+            color: #f1f1f1;
+            padding: 1rem;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        #project-list {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        #project-list li {
+            background: #fff;
+            border: 1px solid #ddd;
+            padding: 1rem;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .delete-btn {
+            background-color: #dc3545;
+        }
+
+        .delete-btn:hover {
+            background-color: #c82333;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>Interface de Test pour ProjetAPI</h1>
+
+        <!-- Section pour lister tous les projets -->
+        <div class="api-section">
+            <h2>2. Lister tous les projets (GET /projects)</h2>
+            <button onclick="getAllProjects()">Rafraîchir la liste des projets</button>
+            <ul id="project-list"></ul>
+        </div>
+
+        <!-- Section pour créer un projet -->
+        <div class="api-section">
+            <h2>1. Soumettre un nouveau projet (POST /projects)</h2>
+            <form id="create-project-form">
+                <label for="studentName">Nom de l'étudiant:</label>
+                <input type="text" id="studentName" name="studentName" required placeholder="ex: Jean Dupont">
+
+                <label for="course">Cours:</label>
+                <input type="text" id="course" name="course" required placeholder="ex: Bachelor 3 Informatique">
+
+                <label for="githubUrl">URL GitHub:</label>
+                <input type="text" id="githubUrl" name="githubUrl" required placeholder="ex: https://github.com/...">
+
+                <button type="submit">Créer le projet</button>
+            </form>
+        </div>
+
+        <!-- Section pour les opérations sur un projet spécifique -->
+        <div class="api-section">
+            <h2>3, 4, 5. Opérations par ID de projet</h2>
+            <label for="projectId">ID du Projet:</label>
+            <input type="text" id="projectId" name="projectId" placeholder="Copiez-collez un ID depuis la liste ci-dessus">
+
+            <button onclick="getProjectById( )">3. Obtenir les détails (GET)</button>
+            <button onclick="deleteProjectById()">5. Supprimer le projet (DELETE)</button>
+
+            <hr style="margin: 2rem 0;">
+
+            <label for="grade">Note à attribuer (0-20):</label>
+            <input type="number" id="grade" name="grade" min="0" max="20" placeholder="ex: 15">
+            <button onclick="gradeProject()">4. Noter le projet (PUT)</button>
+        </div>
+
+        <!-- Section pour filtrer par cours -->
+        <div class="api-section">
+            <h2>6. Filtrer par cours (GET /projects/course/:courseName)</h2>
+            <label for="courseName">Nom du cours:</label>
+            <input type="text" id="courseName" name="courseName" placeholder="ex: Bachelor 3 Informatique">
+            <button onclick="getProjectsByCourse()">Filtrer</button>
+        </div>
+
+        <!-- Section pour afficher les résultats -->
+        <h2>Résultats de l'API</h2>
+        <pre id="api-response">Les réponses des requêtes API apparaîtront ici...</pre>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://127.0.0.1:8000';
+        const responseElement = document.getElementById('api-response');
+        const projectListElement = document.getElementById('project-list');
+
+        // Fonction pour afficher les réponses
+        function displayResponse(data) {
+            responseElement.textContent = JSON.stringify(data, null, 2);
+        }
+
+        // 2. GET /projects
+        async function getAllProjects() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/projects`);
+                const projects = await response.json();
+
+                projectListElement.innerHTML = ''; // Vider la liste
+                if (projects.length === 0) {
+                    projectListElement.innerHTML = '<li>Aucun projet trouvé.</li>';
+                } else {
+                    projects.forEach(p => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `
+                            <div>
+                                <strong>${p.studentName}</strong> (${p.course})
+
+                                <small>ID: ${p.id}</small>
+
+                                <small>Note: ${p.grade !== null ? p.grade : 'Non noté'}</small>
+                            </div>
+                            <button class="delete-btn" onclick="deleteProjectById('${p.id}')">Supprimer</button>
+                        `;
+                        projectListElement.appendChild(li);
+                    });
+                }
+                displayResponse({
+                    status: response.status,
+                    body: projects
+                });
+            } catch (error) {
+                displayResponse({
+                    error: error.message
+                });
+            }
+        }
+
+        // 1. POST /projects
+        document.getElementById('create-project-form').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const formData = new FormData(this);
+            const projectData = Object.fromEntries(formData.entries());
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/projects`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(projectData)
+                });
+                const result = await response.json();
+                displayResponse({
+                    status: response.status,
+                    body: result
+                });
+                if (response.ok) {
+                    getAllProjects(); // Rafraîchir la liste
+                }
+            } catch (error) {
+                displayResponse({
+                    error: error.message
+                });
+            }
+        });
+
+        // 3. GET /projects/:id
+        async function getProjectById() {
+            const projectId = document.getElementById('projectId').value;
+            if (!projectId) {
+                alert('Veuillez entrer un ID de projet.');
+                return;
+            }
+            try {
+                const response = await fetch(`${API_BASE_URL}/projects/${projectId}`);
+                const result = await response.json();
+                displayResponse({
+                    status: response.status,
+                    body: result
+                });
+            } catch (error) {
+                displayResponse({
+                    error: error.message
+                });
+            }
+        }
+
+        // 4. PUT /projects/:id/grade
+        async function gradeProject() {
+            const projectId = document.getElementById('projectId').value;
+            const grade = document.getElementById('grade').value;
+            if (!projectId || grade === '') {
+                alert('Veuillez entrer un ID de projet et une note.');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/projects/${projectId}/grade`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        grade: parseInt(grade)
+                    })
+                });
+                const result = await response.json();
+                displayResponse({
+                    status: response.status,
+                    body: result
+                });
+                if (response.ok) {
+                    getAllProjects(); // Rafraîchir la liste
+                }
+            } catch (error) {
+                displayResponse({
+                    error: error.message
+                });
+            }
+        }
+
+        // 5. DELETE /projects/:id
+        async function deleteProjectById(id) {
+            const projectId = id || document.getElementById('projectId').value;
+            if (!projectId) {
+                alert('Veuillez entrer ou cliquer sur un ID de projet.');
+                return;
+            }
+            if (!confirm(`Êtes-vous sûr de vouloir supprimer le projet avec l'ID: ${projectId}?`)) return;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/projects/${projectId}`, {
+                    method: 'DELETE'
+                });
+                displayResponse({
+                    status: response.status,
+                    message: response.ok ? 'Projet supprimé avec succès.' : 'Erreur lors de la suppression.'
+                });
+                if (response.ok) {
+                    getAllProjects(); // Rafraîchir la liste
+                }
+            } catch (error) {
+                displayResponse({
+                    error: error.message
+                });
+            }
+        }
+
+        // 6. GET /projects/course/:courseName
+        async function getProjectsByCourse() {
+            const courseName = document.getElementById('courseName').value;
+            if (!courseName) {
+                alert('Veuillez entrer un nom de cours.');
+                return;
+            }
+            try {
+                const response = await fetch(`${API_BASE_URL}/projects/course/${courseName}`);
+                const result = await response.json();
+                displayResponse({
+                    status: response.status,
+                    body: result
+                });
+            } catch (error) {
+                displayResponse({
+                    error: error.message
+                });
+            }
+        }
+
+        // Charger les projets au démarrage
+        window.onload = getAllProjects;
+    </script>
+</body>
+
+</html>
