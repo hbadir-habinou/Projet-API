@@ -1,6 +1,6 @@
 # main.py
 import json
-import uuid  # noqa: F401
+import uuid
 from fastapi import FastAPI, HTTPException  # noqa: F401
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles  # noqa: F401
@@ -58,3 +58,14 @@ class ProjectCreate(BaseModel):
 
 class GradeUpdate(BaseModel):
     grade: int
+
+
+# Code pour l'Issue #1 : POST /projects
+@app.post("/projects", response_model=Project)
+def create_project(project_data: ProjectCreate):
+    """Soumettre un nouveau projet."""
+    db = read_db()
+    new_project = Project(id=str(uuid.uuid4()), **project_data.dict())
+    db["projects"].append(new_project.dict())
+    write_db(db)
+    return new_project
