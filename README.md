@@ -122,8 +122,10 @@ L'API expose les endpoints suivants pour gérer les projets :
 
 ## 👥 Membres de l'Équipe
 
--   **[À COMPLÉTER]** Nom du membre 1 (Lead/Maintainer)
--   **[À COMPLÉTER]** Nom du membre 2
--   **[À COMPLÉTER]** Nom du membre 3
--   **[À COMPLÉTER]** Nom du membre 4
--   **[À COMPLÉTER]** Nom du membre 5
+-   **[Zidane]** Nom du membre 1 (Lead/Maintainer)
+-   **[Ondoa]** Nom du membre 2
+-   **[Habiba]** Nom du membre 3
+-   **[Chris]** Nom du membre 4
+-   **[Ketchemene]** Nom du membre 5
+-   **[Gabrielle]** Nom du membre 6
+-   **[Rayan]** Nom du membre 7
