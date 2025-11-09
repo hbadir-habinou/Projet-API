@@ -28,7 +28,7 @@ jobs:
           PROMPT="Tu es un relecteur de code expert en Python et FastAPI. Analyse ce diff. Si le code est bon, fournis des pistes d'amélioration. Si le code contient des bugs ou des mauvaises pratiques, liste-les. Réponds en français et utilise du Markdown pour formater ta réponse."
           JSON_PAYLOAD=$(jq -n --arg prompt "$PROMPT" --arg diff "${{ steps.get_diff.outputs.diff_content }}" '{ "contents": [ { "parts": [ { "text": $prompt }, { "text": $diff } ] } ] }')
           RESPONSE=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${{ secrets.GEMINI_API_KEY }}" -H "Content-Type: application/json" -d "$JSON_PAYLOAD" )
-          REVIEW_TEXT=$(echo $RESPONSE | jq -r '.candidates[0].content.parts[0].text')
+          REVIEW_TEXT=$(echo "$RESPONSE" | jq -r '.candidates.content.parts.text // "Erreur: Impossible d\'analyser la réponse de l\'IA."')
           echo "review_text<<EOF" >> $GITHUB_OUTPUT
           echo "$REVIEW_TEXT" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
