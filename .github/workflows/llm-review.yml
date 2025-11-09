@@ -21,15 +21,7 @@ jobs:
       - name: Get Pull Request Diff
         id: get_diff
         run: |
-          BASE_SHA="${{ github.event.pull_request.base.sha }}"
-          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
-
-          echo "Base SHA: $BASE_SHA"
-          echo "Head SHA: $HEAD_SHA"
-
-          git fetch origin $BASE_SHA $HEAD_SHA
-          git diff $BASE_SHA..$HEAD_SHA > pr_diff.txt
-
+          git diff ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} > pr_diff.txt
           echo "diff_content<<EOF" >> $GITHUB_OUTPUT
           cat pr_diff.txt >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -48,78 +40,25 @@ jobs:
 
           RESPONSE=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}" \
             -H "Content-Type: application/json" \
-            -d @payload.json)
+            -d @payload.json )
 
-          echo "--- RÉPONSE BRUTE GEMINI ---"
-          echo "$RESPONSE"
-          echo "--- FIN RÉPONSE ---"
-
-          REVIEW_TEXT=$(echo "$RESPONSE" | jq -r '.candidates[0].content.parts[0].text // "⚠️ Erreur : aucune réponse reçue de Gemini."')
+          REVIEW_TEXT=$(echo "$RESPONSE" | jq -r '.candidates[0].content.parts[0].text // "⚠️ Erreur : Impossible d’analyser la réponse de Gemini."')
 
           ERROR=$(echo "$RESPONSE" | jq -r '.error.message // empty')
           if [ -n "$ERROR" ]; then
             REVIEW_TEXT="🚨 **Erreur Gemini API** : $ERROR"
           fi
 
-          # Échappement pour JS + HTML
-          REVIEW_TEXT_ESCAPED=$(echo "$REVIEW_TEXT" | sed 's/`/\\`/g' | sed 's/\$/\\$/g' | sed 's/"/\\"/g')
-
           echo "review_text<<EOF" >> $GITHUB_OUTPUT
-          echo "$REVIEW_TEXT_ESCAPED" >> $GITHUB_OUTPUT
+          echo "$REVIEW_TEXT" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-
-          # Version Markdown brute pour conversion HTML
-          echo "$REVIEW_TEXT" > review.md
-
-      - name: Convert Markdown → HTML pour email
-        run: |
-          # pandoc est pré-installé sur ubuntu-latest
-          pandoc review.md -f markdown -t html --standalone --css=<(cat <<'CSS'
-          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; background:#f6f8fa; margin:0; padding:20px; }
-          .container { max-width: 700px; margin: auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-          .header { background: #0969da; color: white; padding: 30px; text-align: center; }
-          .header h1 { margin:0; font-size: 24px; }
-          .content { padding: 30px; line-height: 1.6; color: #24292f; }
-          table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-          td { padding: 10px; border-bottom: 1px solid #eaecef; }
-          .label { font-weight: 600; color: #57606a; width: 120px; }
-          pre { background: #f6f8fa; padding: 16px; border-radius: 8px; overflow-x: auto; }
-          .footer { background: #f6f8fa; padding: 20px; text-align: center; font-size: 12px; color: #57606a; }
-          CSS
-          ) > review.html
-
-          # On passe le HTML complet à l'étape suivante
-          echo "email_html<<EOF" >> $GITHUB_OUTPUT
-          cat review.html >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-        id: convert
 
       - name: Comment on PR
         uses: actions/github-script@v7
-        env:
-          REVIEW_TEXT: ${{ steps.call_llm.outputs.review_text }}
         with:
           script: |
-            const reviewText = process.env.REVIEW_TEXT || "Aucune revue générée.";
-
-            const maxLength = 65536;
-            const truncatedText = reviewText.length > maxLength
-              ? reviewText.substring(0, maxLength - 200) + "\n\n... (commentaire tronqué, trop long pour GitHub)"
-              : reviewText;
-
-            const reviewBody = `### 🤖 Revue de code par l'IA (Gemini)
-
-            Bonjour @${{ github.actor }} !
-
-            Voici l'analyse automatique des derniers changements :
-
-            ---
-
-            ${truncatedText}
-
-            ---
-            _Généré par GitHub Actions • ${{ github.workflow }} • Run ${{ github.run_id }}_`;
-
+            const reviewText = `${{ steps.call_llm.outputs.review_text }}`;
+            const reviewBody = `### 🤖 Revue de code par l'IA (Gemini)\n\nBonjour @${{ github.actor }} !\n\nVoici l'analyse automatique des derniers changements :\n\n---\n\n${reviewText}\n\n---\n_Généré par GitHub Actions • ${{ github.workflow }}_`;
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
@@ -127,7 +66,10 @@ jobs:
               body: reviewBody
             });
 
-      - name: Send Email Notification (HTML + CSS sexy)
+      # =================================================================
+      # ÉTAPE FINALE : E-MAIL EMPELLI AU FORMAT HTML
+      # =================================================================
+      - name: Send Email Notification
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
@@ -137,41 +79,47 @@ jobs:
           subject: "🤖 Revue IA • PR #${{ github.event.pull_request.number }} par @${{ github.actor }}"
           to: ${{ secrets.TEAM_EMAIL_LIST }}
           from: GitHub Actions Bot <${{ secrets.MAIL_USERNAME }}>
-          html_body: |
+          # On spécifie le type de contenu
+          content_type: text/html
+          # On utilise la syntaxe multiligne pour écrire le corps de l'e-mail en HTML
+          body: |
             <!DOCTYPE html>
-            <html>
+            <html lang="fr">
             <head>
-              <meta charset="utf-8">
-              <title>Revue IA PR #${{ github.event.pull_request.number }}</title>
+              <meta charset="UTF-8">
+              <style>
+                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #333; line-height: 1.6; }
+                .container { max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9; }
+                .header { text-align: center; border-bottom: 1px solid #ddd; padding-bottom: 15px; margin-bottom: 20px; }
+                .header h1 { margin: 0; color: #24292e; font-size: 24px; }
+                .pr-info { margin-bottom: 20px; }
+                .pr-info p { margin: 5px 0; }
+                .review-box { background-color: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 6px; }
+                .review-box h2 { margin-top: 0; font-size: 18px; color: #0366d6; }
+                .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #6a737d; }
+                .button { display: inline-block; padding: 10px 15px; margin-top: 15px; background-color: #28a745; color: #ffffff; text-decoration: none; border-radius: 5px; }
+                pre, code { background-color: #f6f8fa; padding: 2px 4px; border-radius: 3px; font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace; }
+                pre { padding: 16px; overflow: auto; }
+              </style>
             </head>
             <body>
               <div class="container">
                 <div class="header">
-                  <h1>🤖 Revue de code IA</h1>
-                  <p style="margin:10px 0 0; font-size:16px;">PR #${{ github.event.pull_request.number }} • ${{ github.event.pull_request.title }}</p>
+                  <h1>🤖 Revue de Code par l'IA</h1>
                 </div>
-                <div class="content">
-                  <table>
-                    <tr><td class="label">👤 Auteur</td><td>@${{ github.actor }}</td></tr>
-                    <tr><td class="label">📝 Titre</td><td>${{ github.event.pull_request.title }}</td></tr>
-                    <tr><td class="label">🔗 Lien PR</td><td><a href="${{ github.event.pull_request.html_url }}" style="color:#0969da;">Ouvrir la Pull Request</a></td></tr>
-                    <tr><td class="label">⏰ Date</td><td>${{ github.event.pull_request.updated_at }}</td></tr>
-                  </table>
-
-                  <h2 style="color:#24292f; border-bottom:2px solid #0969da; padding-bottom:8px;">Analyse Gemini</h2>
-
-                  ${{ steps.convert.outputs.email_html }}
-
-                  <div style="margin-top:40px; padding:20px; background:#f0f9ff; border-left:5px solid #0969da; border-radius:8px;">
-                    <p><strong>💡 Astuce :</strong> Cliquez sur le lien ci-dessus pour commenter directement sur GitHub !</p>
-                  </div>
+                <div class="pr-info">
+                  <p>Une nouvelle analyse a été générée pour la Pull Request <strong>#${{ github.event.pull_request.number }}</strong>.</p>
+                  <p><strong>Auteur :</strong> @${{ github.actor }}</p>
+                  <p><strong>Titre :</strong> ${{ github.event.pull_request.title }}</p>
+                </div>
+                <div class="review-box">
+                  <h2>Analyse de Gemini</h2>
+                  <pre>${{ steps.call_llm.outputs.review_text }}</pre>
+                  <a href="${{ github.event.pull_request.html_url }}" class="button">Voir la Pull Request</a>
                 </div>
                 <div class="footer">
-                  Généré automatiquement par <strong>${{ github.workflow }}</strong> •
-                  <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" style="color:#0969da;">Voir le run #${{ github.run_id }}</a>
+                  <p>Généré par le workflow "${{ github.workflow }}" • Run #${{ github.run_id }}</p>
                 </div>
               </div>
             </body>
             </html>
-          # Option pour forcer l’envoi en HTML pur
-          content_type: text/html
