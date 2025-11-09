@@ -46,7 +46,7 @@ jobs:
           # Appel à l'API Gemini avec curl
           RESPONSE=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-latest:generateContent?key=${{ secrets.GEMINI_API_KEY }}" \
             -H "Content-Type: application/json" \
-            -d "$JSON_PAYLOAD" )
+            -d "$JSON_PAYLOAD"
 
           # Extraction de la réponse de l'IA et stockage pour les étapes suivantes
           REVIEW_TEXT=$(echo $RESPONSE | jq -r '.candidates[0].content.parts[0].text')
