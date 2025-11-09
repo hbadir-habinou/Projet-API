@@ -71,10 +71,61 @@ def create_project(project_data: ProjectCreate):
     return new_project
 
 
+# Issue #4: PUT /projects/{project_id}/grade
+@app.put("/projects/{project_id}/grade", response_model=Project, tags=["Projects"])
+def grade_project(project_id: str, grade_update: GradeUpdate):
+    """Permettre à un 'professeur' de noter un projet."""
+    db = read_db()
+    project_to_update = None
+    for project in db.get("projects", []):
+        if project["id"] == project_id:
+            project["grade"] = grade_update.grade
+            project_to_update = project
+            break
+    if not project_to_update:
+        raise HTTPException(
+            status_code=404, detail=f"Project with ID '{project_id}' not found"
+        )
+    write_db(db)
+    return project_to_update
+
+
+# Issue #2: GET /projects
+@app.get("/projects", response_model=List[Project], tags=["Projects"])
+def get_all_projects():
+    """Lister tous les projets soumis."""
+    db = read_db()
+    return db.get("projects", [])
+
+
 # Issue #5: DELETE /projects/{project_id}
 @app.delete("/projects/{project_id}", status_code=204, tags=["Projects"])
 def delete_project(project_id: str):
     """Supprimer une soumission de projet."""
+    db = read_db()
+    initial_count = len(db.get("projects", []))
+    db["projects"] = [p for p in db["projects"] if p["id"] != project_id]
+    if len(db["projects"]) == initial_count:
+        raise HTTPException(
+            status_code=404, detail=f"Project with ID '{project_id}' not found"
+        )
+    write_db(db)
+    return  # Pas de contenu à retourner avec un statut 204
+
+
+# Issue #6: GET /projects/course/{course_name}
+@app.get(
+    "/projects/course/{course_name}", response_model=List[Project], tags=["Projects"]
+)
+def get_projects_by_course(course_name: str):
+    """Filtrer les projets par nom de cours."""
+    db = read_db()
+    filtered_projects = [
+        p for p in db.get("projects", []) if p["course"].lower() == course_name.lower()
+    ]
+    return filtered_projects
+
+
 # Issue #3: GET /projects/{project_id}
 @app.get("/projects/{project_id}", response_model=Project, tags=["Projects"])
 def get_project_by_id(project_id: str):
@@ -86,16 +137,3 @@ def get_project_by_id(project_id: str):
     raise HTTPException(
         status_code=404, detail=f"Project with ID '{project_id}' not found"
     )
-# Issue #4: PUT /projects/{project_id}/grade
-@app.put("/projects/{project_id}/grade", response_model=Project, tags=["Projects"])
-def grade_project(project_id: str, grade_update: GradeUpdate):
-    """Permettre à un 'professeur' de noter un projet."""
-    db = read_db()
-    initial_count = len(db.get("projects", []))
-    db["projects"] = [p for p in db["projects"] if p["id"] != project_id]
-    if len(db["projects"]) == initial_count:
-        raise HTTPException(
-            status_code=404, detail=f"Project with ID '{project_id}' not found"
-        )
-    write_db(db)
-    return  # Pas de contenu à retourner avec un statut 204
