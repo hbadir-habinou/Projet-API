@@ -21,7 +21,12 @@ jobs:
       - name: Get Pull Request Diff
         id: get_diff
         run: |
-          git diff ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} > pr_diff.txt
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+
+          git fetch origin $BASE_SHA $HEAD_SHA
+          git diff $BASE_SHA..$HEAD_SHA > pr_diff.txt
+
           echo "diff_content<<EOF" >> $GITHUB_OUTPUT
           cat pr_diff.txt >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -40,44 +45,108 @@ jobs:
 
           RESPONSE=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}" \
             -H "Content-Type: application/json" \
-            -d @payload.json )
+            -d @payload.json)
 
-          REVIEW_TEXT=$(echo "$RESPONSE" | jq -r '.candidates.content.parts.text // "⚠️ Erreur : Impossible d’analyser la réponse de Gemini."')
+          REVIEW_TEXT=$(echo "$RESPONSE" | jq -r '.candidates[0].content.parts[0].text // "⚠️ Erreur : aucune réponse reçue de Gemini."')
 
           ERROR=$(echo "$RESPONSE" | jq -r '.error.message // empty')
           if [ -n "$ERROR" ]; then
             REVIEW_TEXT="🚨 **Erreur Gemini API** : $ERROR"
           fi
 
+          # Sauvegarde brute pour conversion HTML
+          echo "$REVIEW_TEXT" > review.md
+
+          # Échappement pour JS
+          REVIEW_ESCAPED=$(echo "$REVIEW_TEXT" | sed 's/`/\\`/g; s/\$/\\$/g; s/"/\\"/g')
           echo "review_text<<EOF" >> $GITHUB_OUTPUT
-          echo "$REVIEW_TEXT" >> $GITHUB_OUTPUT
+          echo "$REVIEW_ESCAPED" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      # =================================================================
-      # CORRECTION FINALE : Utilisation de 'env' pour passer la revue
-      # =================================================================
+      - name: Markdown → HTML beautifull (sans pandoc !)
+        id: md2html
+        run: |
+          cat > markdown_to_html.sh <<'EOF'
+          #!/usr/bin/env bash
+          input="$1"
+          cat <<PREAMBLE
+          <!DOCTYPE html>
+          <html><head><meta charset="utf-8"><style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; background:#f6f8fa; margin:0; padding:20px; line-height:1.6; color:#24292f; }
+          .container { max-width: 720px; margin: 20px auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+          .header { background: #0969da; color: white; padding: 30px; text-align: center; }
+          .header h1 { margin:0; font-size: 24px; }
+          .content { padding: 30px; }
+          h1, h2, h3 { color: #0969da; }
+          pre, code { background: #f6f8fa; padding: 12px; border-radius: 8px; overflow-x: auto; font-size: 14px; }
+          blockquote { border-left: 5px solid #0969da; padding-left: 15px; margin: 15px 0; color: #57606a; }
+          ul, ol { padding-left: 25px; }
+          table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+          td, th { padding: 10px; border: 1px solid #eaecef; }
+          .footer { background: #f6f8fa; padding: 20px; text-align: center; font-size: 12px; color: #57606a; }
+          </style></head><body>
+          <div class="container">
+            <div class="header"><h1>🤖 Revue de code IA</h1></div>
+            <div class="content">
+          PREAMBLE
+
+          # Conversion Markdown → HTML simple mais efficace
+          sed -E '
+            s/^### (.*)/<h3>\1<\/h3>/g
+            s/^## (.*)/<h2>\1<\/h2>/g
+            s/^# (.*)/<h1>\1<\/h1>/g
+            s/\*\*(.*)\*\*/<strong>\1<\/strong>/g
+            s/\*(.*)\*/<em>\1<\/em>/g
+            s/`([^`]*)`/<code>\1<\/code>/g
+            s/```([a-z]*)?([^`]*)```/<pre><code>\2<\/code><\/pre>/g
+            s/^- (.*)/<ul><li>\1<\/li><\/ul>/g
+            s/^[0-9]+\. (.*)/<ol><li>\1<\/li><\/ol>/g
+            s/^\|(.+)\|$/<table><tr><td>\1<\/td><\/tr><\/table>/g  # très basique pour les tableaux
+            s/> (.*)/<blockquote>\1<\/blockquote>/g
+            s/^\s*$/<br>/g
+          ' "$input" | sed -E ':a; /<\/ul><ul>/ba; s/<\/ul><ul>//g' | sed -E ':a; /<\/ol><ol>/ba; s/<\/ol><ol>//g'
+
+          cat <<FOOTER
+            </div>
+            <div class="footer">
+              Généré par GitHub Actions • ${{ github.workflow }} • Run ${{ github.run_id }}
+            </div>
+          </div>
+          </body></html>
+          FOOTER
+          EOF
+
+          chmod +x markdown_to_html.sh
+          ./markdown_to_html.sh review.md > review.html
+
+          echo "email_html<<EOF" >> $GITHUB_OUTPUT
+          cat review.html >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Comment on PR
         uses: actions/github-script@v7
         env:
-          # On passe la revue comme une variable d'environnement
           REVIEW_TEXT: ${{ steps.call_llm.outputs.review_text }}
         with:
           script: |
-            // On lit la variable d'environnement de manière sécurisée
             const reviewText = process.env.REVIEW_TEXT || "Aucune revue générée.";
+            const maxLength = 65536;
+            const truncatedText = reviewText.length > maxLength
+              ? reviewText.substring(0, maxLength - 200) + "\n\n... (tronqué)"
+              : reviewText;
 
             const reviewBody = `### 🤖 Revue de code par l'IA (Gemini)
 
             Bonjour @${{ github.actor }} !
 
-            Voici l'analyse automatique des derniers changements :
+            Voici l'analyse automatique :
 
             ---
 
-            ${reviewText}
+            ${truncatedText}
 
             ---
-            _Généré par GitHub Actions • ${{ github.workflow }}_`;
+            _Généré par ${{ github.workflow }} • Run ${{ github.run_id }}_`;
 
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
@@ -86,7 +155,7 @@ jobs:
               body: reviewBody
             });
 
-      - name: Send Email Notification
+      - name: Send Email Notification (HTML + CSS magnifique)
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
@@ -96,44 +165,49 @@ jobs:
           subject: "🤖 Revue IA • PR #${{ github.event.pull_request.number }} par @${{ github.actor }}"
           to: ${{ secrets.TEAM_EMAIL_LIST }}
           from: GitHub Actions Bot <${{ secrets.MAIL_USERNAME }}>
-          content_type: text/html
-          body: |
+          html_body: |
             <!DOCTYPE html>
-            <html lang="fr">
+            <html>
             <head>
-              <meta charset="UTF-G">
+              <meta charset="utf-8">
               <style>
-                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #333; line-height: 1.6; }
-                .container { max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9; }
-                .header { text-align: center; border-bottom: 1px solid #ddd; padding-bottom: 15px; margin-bottom: 20px; }
-                .header h1 { margin: 0; color: #24292e; font-size: 24px; }
-                .pr-info { margin-bottom: 20px; }
-                .pr-info p { margin: 5px 0; }
-                .review-box { background-color: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 6px; }
-                .review-box h2 { margin-top: 0; font-size: 18px; color: #0366d6; }
-                .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #6a737d; }
-                .button { display: inline-block; padding: 10px 15px; margin-top: 15px; background-color: #28a745; color: #ffffff; text-decoration: none; border-radius: 5px; }
-                pre { background-color: #f6f8fa; padding: 16px; overflow: auto; white-space: pre-wrap; word-wrap: break-word; border-radius: 3px; }
+                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background:#f6f8fa; margin:0; padding:20px; }
+                .container { max-width: 720px; margin: auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+                .header { background: #0969da; color: white; padding: 40px 30px; text-align: center; }
+                .header h1 { margin:0; font-size: 28px; }
+                .infos { padding: 30px; background: #f0f9ff; }
+                table { width: 100%; border-collapse: collapse; }
+                td { padding: 12px; border-bottom: 1px solid #d0e5ff; }
+                .label { font-weight: 600; color: #0969da; width: 120px; }
+                .content { padding: 30px; }
+                .footer { background: #f6f8fa; padding: 25px; text-align: center; font-size: 12px; color: #57606a; }
               </style>
             </head>
             <body>
               <div class="container">
                 <div class="header">
-                  <h1>🤖 Revue de Code par l'IA</h1>
+                  <h1>🤖 Revue de code IA</h1>
+                  <p style="margin:10px 0 0; font-size:18px;">PR #${{ github.event.pull_request.number }} • ${{ github.event.pull_request.title }}</p>
                 </div>
-                <div class="pr-info">
-                  <p>Une nouvelle analyse a été générée pour la Pull Request <strong>#${{ github.event.pull_request.number }}</strong>.</p>
-                  <p><strong>Auteur :</strong> @${{ github.actor }}</p>
-                  <p><strong>Titre :</strong> ${{ github.event.pull_request.title }}</p>
+
+                <div class="infos">
+                  <table>
+                    <tr><td class="label">👤 Auteur</td><td>@${{ github.actor }}</td></tr>
+                    <tr><td class="label">🔗 Lien</td><td><a href="${{ github.event.pull_request.html_url }}" style="color:#0969da; text-decoration:none;">Ouvrir la PR</a></td></tr>
+                    <tr><td class="label">⏰ Mise à jour</td><td>${{ github.event.pull_request.updated_at }}</td></tr>
+                  </table>
                 </div>
-                <div class="review-box">
-                  <h2>Analyse de Gemini</h2>
-                  <pre>${{ steps.call_llm.outputs.review_text }}</pre>
-                  <a href="${{ github.event.pull_request.html_url }}" class="button">Voir la Pull Request</a>
+
+                <div class="content">
+                  <h2 style="color:#0969da; border-bottom:2px solid #0969da; padding-bottom:10px;">Analyse Gemini</h2>
+                  ${{ steps.md2html.outputs.email_html }}
                 </div>
+
                 <div class="footer">
-                  <p>Généré par le workflow "${{ github.workflow }}" • Run #${{ github.run_id }}</p>
+                  Généré automatiquement par <strong>${{ github.workflow }}</strong> •
+                  <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" style="color:#0969da;">Run #${{ github.run_id }}</a>
                 </div>
               </div>
             </body>
             </html>
+          content_type: text/html
