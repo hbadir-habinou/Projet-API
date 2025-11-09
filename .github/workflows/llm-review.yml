@@ -5,11 +5,8 @@ on:
     types: [opened, synchronize]
     branches: [ develop ]
 
-# =================================================================
-# CORRECTION FINALE : Ajout des permissions d'écriture
-# =================================================================
 permissions:
-  pull-requests: write # Permet au workflow de commenter sur les PRs
+  pull-requests: write
 
 jobs:
   review_and_notify:
@@ -35,17 +32,29 @@ jobs:
           DIFF_CONTENT: ${{ steps.get_diff.outputs.diff_content }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
+          # On prépare le corps de la requête (payload) dans un fichier temporaire
           jq -n \
             --arg prompt "$PROMPT_TEXT" \
             --arg diff "$DIFF_CONTENT" \
             '{ "contents": [ { "parts": [ { "text": $prompt }, { "text": $diff } ] } ] }' > payload.json
 
+          # On exécute la requête curl en lisant le payload depuis le fichier
           RESPONSE=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}" \
             -H "Content-Type: application/json" \
             -d @payload.json )
 
+          # =================================================================
+          # LIGNE DE DÉBOGAGE : Affiche la réponse brute de l'API dans les logs
+          # =================================================================
+          echo "--- DÉBUT DE LA RÉPONSE BRUTE DE L'API ---"
+          echo "$RESPONSE"
+          echo "--- FIN DE LA RÉPONSE BRUTE DE L'API ---"
+          # =================================================================
+
+          # On extrait la réponse de manière sécurisée
           REVIEW_TEXT=$(echo "$RESPONSE" | jq -r '.candidates[0].content.parts[0].text // "Erreur: Impossible d’analyser la réponse de l’IA."')
 
+          # On passe la revue aux étapes suivantes
           echo "review_text<<EOF" >> $GITHUB_OUTPUT
           echo "$REVIEW_TEXT" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
