@@ -22,9 +22,13 @@ jobs:
       - name: Get Pull Request Diff
         id: get_diff
         run: |
-          # Compare la branche de la PR (HEAD) avec la branche cible (base)
+          # 1. On crée le fichier pr_diff.txt (cette ligne est essentielle)
           git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} > pr_diff.txt
-          echo "diff_content=$(cat pr_diff.txt)" >> $GITHUB_OUTPUT
+          # CORRECTION : Utilisation de la syntaxe multiligne pour éviter les erreurs de formatage
+          echo 'diff_content<<EOF' >> $GITHUB_OUTPUT
+          cat pr_diff.txt >> $GITHUB_OUTPUT
+          echo 'EOF' >> $GITHUB_OUTPUT
+
 
       # Étape 3 : Appeler l'API Gemini pour la revue de code
       - name: Call Gemini API for Code Review

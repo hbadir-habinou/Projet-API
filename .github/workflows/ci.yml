@@ -62,8 +62,8 @@ jobs:
 
       - name: Lancement de Flake8
         run: |
-          # --strict fait échouer le job s'il y a le moindre avertissement
-          flake8 . --count --show-source --strict
+          # CORRECTION : On retire l'option --strict qui n'est pas valide pour flake8
+          flake8 . --count --show-source
 
   # JOB 3: TYPE-CHECK
   # Ce job est également dépendant de 'setup'.
