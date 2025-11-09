@@ -44,7 +44,7 @@ jobs:
             '{ "contents": [ { "parts": [ { "text": $prompt }, { "text": $diff } ] } ] }')
 
           # Appel à l'API Gemini avec curl
-          RESPONSE=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${{ secrets.GEMINI_API_KEY }}" \
+          RESPONSE=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${{ secrets.GEMINI_API_KEY }}" \
             -H "Content-Type: application/json" \
             -d "$JSON_PAYLOAD" )
 
