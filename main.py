@@ -18,7 +18,7 @@ app = FastAPI(
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
-    with open("index.html") as f:
+    with open("index.html", "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read(), status_code=200)
 
 
@@ -69,3 +69,19 @@ def create_project(project_data: ProjectCreate):
     db["projects"].append(new_project.dict())
     write_db(db)
     return new_project
+    
+# Issue #4: PUT /projects/{project_id}/grade
+@app.put("/projects/{project_id}/grade", response_model=Project, tags=["Projects"])
+def grade_project(project_id: str, grade_update: GradeUpdate):
+    """Permettre à un 'professeur' de noter un projet."""
+    db = read_db()
+    project_to_update = None
+    for project in db.get("projects", []):
+        if project["id"] == project_id:
+            project["grade"] = grade_update.grade
+            project_to_update = project
+            break
+    if not project_to_update:
+        raise HTTPException(status_code=404, detail=f"Project with ID '{project_id}' not found")
+    write_db(db)
+    return project_to_update
