@@ -1,13 +1,6 @@
 {
     "projects": [
         {
-            "id": "649390dd-bedb-4729-b85c-32cca0a32f9f",
-            "studentName": "tamar",
-            "course": "git",
-            "githubUrl": "https://github.com.tamses/portfolio.git",
-            "grade": 0
-        },
-        {
             "id": "1b1c5e35-6ced-46ec-847f-2000ebc4d945",
             "studentName": "zidane",
             "course": "git",
@@ -27,6 +20,26 @@
             "course": "git",
             "githubUrl": "https://github.com/hbadir-habinou/Projet-API",
             "grade": 20
+        },
+            "id": "8526eb82-fec9-454d-93ff-8a68f5e0fdcc",
+            "studentName": "Ondoa",
+            "course": "B3",
+            "githubUrl": "https://github.com/tamses4/static_docker.git",
+            "grade": 17
+        },
+        {
+            "id": "d303d07f-3809-4a92-952b-10a19027ca11",
+            "studentName": "Tamar",
+            "course": "B2",
+            "githubUrl": "https://github.com/tamses4/static_docker.git",
+            "grade": null
+        },
+        {
+            "id": "69bc5fce-4c57-4623-b18c-fd78d4648e96",
+            "studentName": "Ondoa",
+            "course": "B2",
+            "githubUrl": "https://github.com/tamses4/static_docker.git",
+            "grade": 12
         }
     ]
 }
