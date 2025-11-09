@@ -38,6 +38,7 @@ jobs:
             --arg diff "$DIFF_CONTENT" \
             '{ "contents": [ { "parts": [ { "text": $prompt }, { "text": $diff } ] } ] }' > payload.json
 
+          # Correction du nom du modèle que vous avez confirmée
           RESPONSE=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}" \
             -H "Content-Type: application/json" \
             -d @payload.json )
@@ -69,8 +70,26 @@ jobs:
             });
 
       # =================================================================
-      # CORRECTION FINALE : Utilisation de 'html_body' au lieu de 'body'
+      # NOUVELLE ÉTAPE : Conversion du Markdown de la revue en HTML
       # =================================================================
+      - name: Convert Review Markdown to HTML
+        id: md_to_html
+        run: |
+          REVIEW_MD="${{ steps.call_llm.outputs.review_text }}"
+          # Remplacement des éléments Markdown courants par des balises HTML
+          HTML_CONTENT=$(echo "$REVIEW_MD" | sed -e 's/### \(.*\)/<h3>\1<\/h3>/g' \
+                                               -e 's/## \(.*\)/<h2>\1<\/h2>/g' \
+                                               -e 's/# \(.*\)/<h1>\1<\/h1>/g' \
+                                               -e 's/\*\*\([^*].*[^*])\*\*/<strong>\1<\/strong>/g' \
+                                               -e 's/\* \([^*].*\)/* <li>\1<\/li>/g' \
+                                               -e 's/`\([^`]*\)`/<code>\1<\/code>/g' \
+                                               -e $'s/---/<hr>/g' \
+                                               -e $'s/\\n/
+                                                /g')
+                                                        echo "html_content<<EOF" >> $GITHUB_OUTPUT
+                                                        echo "$HTML_CONTENT" >> $GITHUB_OUTPUT
+                                                        echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Send Email Notification (HTML)
         uses: dawidd6/action-send-mail@v3
         with:
@@ -82,21 +101,21 @@ jobs:
           to: ${{ secrets.TEAM_EMAIL_LIST }}
           from: GitHub Actions Bot <${{ secrets.MAIL_USERNAME }}>
           content_type: text/html
-          # On utilise 'html_body' pour que le client de messagerie interprète le HTML
           html_body: |
             <!DOCTYPE html>
             <html>
             <head>
               <meta charset="UTF-8">
               <style>
-                body { font-family: sans-serif; background-color: #f6f8fa; margin: 0; padding: 20px; }
+                body { font-family: sans-serif; background-color: #f6f8fa; margin: 0; padding: 20px; line-height: 1.6; }
                 .container { max-width: 680px; margin: auto; background: white; border-radius: 8px; box-shadow: 0 2px 15px rgba(0,0,0,0.07); }
                 .header { background: #24292e; color: white; padding: 20px; text-align: center; border-top-left-radius: 8px; border-top-right-radius: 8px; }
                 .header h1 { margin: 0; font-size: 22px; }
                 .content { padding: 25px; }
-                .content h2 { color: #0366d6; border-bottom: 1px solid #eaecef; padding-bottom: 10px; }
-                .pr-info { background: #f1f8ff; padding: 15px; border-radius: 6px; margin-bottom: 20px; line-height: 1.5; }
-                pre { background-color: #f6f8fa; padding: 16px; overflow: auto; border-radius: 6px; white-space: pre-wrap; word-wrap: break-word; }
+                .content h2, .content h3 { color: #0366d6; border-bottom: 1px solid #eaecef; padding-bottom: 10px; }
+                .pr-info { background: #f1f8ff; padding: 15px; border-radius: 6px; margin-bottom: 20px; }
+                code { background-color: #f6f8fa; padding: .2em .4em; margin: 0; font-size: 85%; border-radius: 3px; }
+                hr { border: 0; height: 1px; background: #d1d5da; margin: 24px 0; }
                 .footer { padding: 20px; text-align: center; font-size: 12px; color: #6a737d; }
                 a { color: #0366d6; text-decoration: none; }
               </style>
@@ -110,8 +129,7 @@ jobs:
 
                     <strong>Auteur :</strong> @${{ github.actor }}
                   </div>
-                  <h2>Analyse de Gemini</h2>
-                  <pre>${{ steps.call_llm.outputs.review_text }}</pre>
+                  ${{ steps.md_to_html.outputs.html_content }}
                 </div>
                 <div class="footer">
                   Généré par le workflow "${{ github.workflow }}"
