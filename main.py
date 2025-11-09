@@ -58,3 +58,18 @@ class ProjectCreate(BaseModel):
 
 class GradeUpdate(BaseModel):
     grade: int
+
+
+# Issue #5: DELETE /projects/{project_id}
+@app.delete("/projects/{project_id}", status_code=204, tags=["Projects"])
+def delete_project(project_id: str):
+    """Supprimer une soumission de projet."""
+    db = read_db()
+    initial_count = len(db.get("projects", []))
+    db["projects"] = [p for p in db["projects"] if p["id"] != project_id]
+    if len(db["projects"]) == initial_count:
+        raise HTTPException(
+            status_code=404, detail=f"Project with ID '{project_id}' not found"
+        )
+    write_db(db)
+    return  # Pas de contenu à retourner avec un statut 204
