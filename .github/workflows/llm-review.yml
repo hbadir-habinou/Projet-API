@@ -39,7 +39,7 @@ jobs:
             '{ "contents": [ { "parts": [ { "text": $prompt }, { "text": $diff } ] } ] }' > payload.json
 
           # On exécute la requête curl en lisant le payload depuis le fichier
-          RESPONSE=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}" \
+          RESPONSE=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}" \
             -H "Content-Type: application/json" \
             -d @payload.json )
 
