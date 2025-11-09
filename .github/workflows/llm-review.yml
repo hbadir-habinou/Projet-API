@@ -21,11 +21,18 @@ jobs:
       - name: Get Pull Request Diff
         id: get_diff
         run: |
-          git fetch origin $$ {{ github.event.pull_request.base.sha }}: $${{ github.event.pull_request.base.sha }}
-          git diff $$ {{ github.event.pull_request.base.sha }}.. $${{ github.event.pull_request.head.sha }} > pr_diff.txt
-          echo 'diff_content<<EOF' >> $GITHUB_OUTPUT
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+
+          echo "Base SHA: $BASE_SHA"
+          echo "Head SHA: $HEAD_SHA"
+
+          git fetch origin $BASE_SHA $HEAD_SHA
+          git diff $BASE_SHA..$HEAD_SHA > pr_diff.txt
+
+          echo "diff_content<<EOF" >> $GITHUB_OUTPUT
           cat pr_diff.txt >> $GITHUB_OUTPUT
-          echo 'EOF' >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Call Gemini API for Code Review
         id: call_llm
@@ -34,32 +41,26 @@ jobs:
           DIFF_CONTENT: ${{ steps.get_diff.outputs.diff_content }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          # Création du payload JSON
           jq -n \
             --arg prompt "$PROMPT_TEXT" \
             --arg diff "$DIFF_CONTENT" \
             '{ "contents": [ { "parts": [ { "text": $prompt }, { "text": $diff } ] } ] }' > payload.json
 
-          # Appel API
-          RESPONSE=$$ (curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key= $${GEMINI_API_KEY}" \
+          RESPONSE=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}" \
             -H "Content-Type: application/json" \
             -d @payload.json)
 
-          # Debug (à garder ou supprimer plus tard)
           echo "--- RÉPONSE BRUTE GEMINI ---"
           echo "$RESPONSE"
           echo "--- FIN RÉPONSE ---"
 
-          # Extraction sécurisée du texte
           REVIEW_TEXT=$(echo "$RESPONSE" | jq -r '.candidates[0].content.parts[0].text // "⚠️ Erreur : aucune réponse reçue de Gemini."')
 
-          # Gestion d’erreur API
           ERROR=$(echo "$RESPONSE" | jq -r '.error.message // empty')
           if [ -n "$ERROR" ]; then
             REVIEW_TEXT="🚨 **Erreur Gemini API** : $ERROR"
           fi
 
-          # Échappement des backticks et dollars pour être 100 % safe dans le JS
           REVIEW_TEXT_ESCAPED=$(echo "$REVIEW_TEXT" | sed 's/`/\\`/g' | sed 's/\$/\\$/g')
 
           echo "review_text<<EOF" >> $GITHUB_OUTPUT
@@ -74,26 +75,23 @@ jobs:
           script: |
             const reviewText = process.env.REVIEW_TEXT || "Aucune revue générée.";
 
-            // Tronquer si > 65k (limite GitHub)
             const maxLength = 65536;
             const truncatedText = reviewText.length > maxLength
               ? reviewText.substring(0, maxLength - 200) + "\n\n... (commentaire tronqué, trop long pour GitHub)"
               : reviewText;
 
-             const reviewBody = `### 🤖 Revue de code par l'IA (Gemini)
+            const reviewBody = `### 🤖 Revue de code par l'IA (Gemini)
 
+            Bonjour @${{ github.actor }} !
 
-             Bonjour @${{ github.actor }} !
+            Voici l'analyse automatique des derniers changements :
 
+            ---
 
-             Voici l'analyse automatique des derniers changements :
+            ${truncatedText}
 
-             ---
-
-             ${truncatedText}
-
-             ---
-             _Généré par GitHub Actions • ${{ github.workflow }} • ${{ github.run_id }}_`;
+            ---
+            _Généré par GitHub Actions • ${{ github.workflow }} • Run ${{ github.run_id }}_`;
 
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
@@ -109,7 +107,7 @@ jobs:
           server_port: 465
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
-          subject: "🤖 Revue IA • PR #$$ {{ github.event.pull_request.number }} par @ $${{ github.actor }}"
+          subject: "🤖 Revue IA • PR #${{ github.event.pull_request.number }} par @${{ github.actor }}"
           to: ${{ secrets.TEAM_EMAIL_LIST }}
           from: GitHub Actions Bot <${{ secrets.MAIL_USERNAME }}>
           body: |
