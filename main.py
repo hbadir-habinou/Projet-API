@@ -1,6 +1,6 @@
 # main.py
 import json
-import uuid
+
 from fastapi import FastAPI, HTTPException  # noqa: F401
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles  # noqa: F401
@@ -61,11 +61,15 @@ class GradeUpdate(BaseModel):
 
 
 # Code pour l'Issue #1 : POST /projects
-@app.post("/projects", response_model=Project)
-def create_project(project_data: ProjectCreate):
-    """Soumettre un nouveau projet."""
+# --- Nouveau endpoint : GET /projects/course/{course_name} ---
+# Issue #6: GET /projects/course/{course_name}
+@app.get(
+    "/projects/course/{course_name}", response_model=List[Project], tags=["Projects"]
+)
+def get_projects_by_course(course_name: str):
+    """Filtrer les projets par nom de cours."""
     db = read_db()
-    new_project = Project(id=str(uuid.uuid4()), **project_data.dict())
-    db["projects"].append(new_project.dict())
-    write_db(db)
-    return new_project
+    filtered_projects = [
+        p for p in db.get("projects", []) if p["course"].lower() == course_name.lower()
+    ]
+    return filtered_projects
