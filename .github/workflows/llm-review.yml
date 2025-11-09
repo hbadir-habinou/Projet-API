@@ -1,62 +1,38 @@
-# .github/workflows/llm-review.yml
-
 name: Revue de Code par IA et Notification
 
 on:
   pull_request:
-    types: [opened, synchronize] # Se déclenche à l'ouverture ou à la mise à jour d'une PR
+    types: [opened, synchronize]
     branches: [ develop ]
 
 jobs:
   review_and_notify:
     runs-on: ubuntu-latest
-
     steps:
-      # Étape 1 : Récupérer le code
       - name: Checkout du code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Récupère tout l'historique pour pouvoir comparer les branches
+          fetch-depth: 0
 
-      # Étape 2 : Obtenir le "diff" (les changements) de la PR
       - name: Get Pull Request Diff
         id: get_diff
         run: |
-          # 1. On crée le fichier pr_diff.txt (cette ligne est essentielle)
           git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} > pr_diff.txt
-          # CORRECTION : Utilisation de la syntaxe multiligne pour éviter les erreurs de formatage
           echo 'diff_content<<EOF' >> $GITHUB_OUTPUT
           cat pr_diff.txt >> $GITHUB_OUTPUT
           echo 'EOF' >> $GITHUB_OUTPUT
 
-
-      # Étape 3 : Appeler l'API Gemini pour la revue de code
       - name: Call Gemini API for Code Review
         id: call_llm
         run: |
-          # On prépare le prompt et le diff pour les envoyer en JSON
           PROMPT="Tu es un relecteur de code expert en Python et FastAPI. Analyse ce diff. Si le code est bon, fournis des pistes d'amélioration. Si le code contient des bugs ou des mauvaises pratiques, liste-les. Réponds en français et utilise du Markdown pour formater ta réponse."
-
-          # Utilisation de 'jq' pour construire le JSON proprement
-          JSON_PAYLOAD=$(jq -n \
-            --arg prompt "$PROMPT" \
-            --arg diff "${{ steps.get_diff.outputs.diff_content }}" \
-            '{ "contents": [ { "parts": [ { "text": $prompt }, { "text": $diff } ] } ] }')
-
-          # Appel à l'API Gemini avec curl
-          RESPONSE=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-latest:generateContent?key=${{ secrets.GEMINI_API_KEY }}" \
-            -H "Content-Type: application/json" \
-            -d "$JSON_PAYLOAD"
-
-          # Extraction de la réponse de l'IA et stockage pour les étapes suivantes
+          JSON_PAYLOAD=$(jq -n --arg prompt "$PROMPT" --arg diff "${{ steps.get_diff.outputs.diff_content }}" '{ "contents": [ { "parts": [ { "text": $prompt }, { "text": $diff } ] } ] }')
+          RESPONSE=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${{ secrets.GEMINI_API_KEY }}" -H "Content-Type: application/json" -d "$JSON_PAYLOAD" )
           REVIEW_TEXT=$(echo $RESPONSE | jq -r '.candidates[0].content.parts[0].text')
-
-          # Gérer les fins de ligne pour le passage entre étapes
           echo "review_text<<EOF" >> $GITHUB_OUTPUT
           echo "$REVIEW_TEXT" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      # Étape 4 : Commenter sur la Pull Request
       - name: Comment on PR
         uses: actions/github-script@v7
         with:
@@ -69,7 +45,6 @@ jobs:
               body: reviewBody
             });
 
-      # Étape 5 : Envoyer un e-mail de notification à l'équipe
       - name: Send Email Notification
         uses: dawidd6/action-send-mail@v3
         with:
@@ -82,11 +57,9 @@ jobs:
           from: GitHub Actions Bot <${{ secrets.MAIL_USERNAME }}>
           body: |
             Une nouvelle revue de code a été générée par l'IA pour la Pull Request #${{ github.event.pull_request.number }}.
-
             Auteur: @${{ github.actor }}
             Titre: ${{ github.event.pull_request.title }}
             Lien: ${{ github.event.pull_request.html_url }}
-
             Voici la revue générée :
             ---
             ${{ steps.call_llm.outputs.review_text }}
