@@ -69,3 +69,16 @@ def create_project(project_data: ProjectCreate):
     db["projects"].append(new_project.dict())
     write_db(db)
     return new_project
+
+
+# Issue #3: GET /projects/{project_id}
+@app.get("/projects/{project_id}", response_model=Project, tags=["Projects"])
+def get_project_by_id(project_id: str):
+    """Obtenir les détails d'un projet par son ID."""
+    db = read_db()
+    for project in db.get("projects", []):
+        if project["id"] == project_id:
+            return project
+    raise HTTPException(
+        status_code=404, detail=f"Project with ID '{project_id}' not found"
+    )
