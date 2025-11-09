@@ -20,6 +20,13 @@
             "course": "c#",
             "githubUrl": "https://github.com/rayan/portfolio.git",
             "grade": 3
+        },
+        {
+            "id": "5b9f7c2e-2bf0-4e5c-b5a1-6a2e8e92a094",
+            "studentName": "habiba",
+            "course": "git",
+            "githubUrl": "https://github.com/hbadir-habinou/Projet-API",
+            "grade": 20
         }
     ]
 }
