@@ -71,6 +71,17 @@ def create_project(project_data: ProjectCreate):
     return new_project
 
 
+# Issue #3: GET /projects/{project_id}
+@app.get("/projects/{project_id}", response_model=Project, tags=["Projects"])
+def get_project_by_id(project_id: str):
+    """Obtenir les détails d'un projet par son ID."""
+    db = read_db()
+    for project in db.get("projects", []):
+        if project["id"] == project_id:
+            return project
+    raise HTTPException(
+        status_code=404, detail=f"Project with ID '{project_id}' not found"
+    )
 # Issue #4: PUT /projects/{project_id}/grade
 @app.put("/projects/{project_id}/grade", response_model=Project, tags=["Projects"])
 def grade_project(project_id: str, grade_update: GradeUpdate):
