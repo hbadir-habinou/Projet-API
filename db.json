@@ -20,6 +20,13 @@
             "course": "c#",
             "githubUrl": "https://github.com/rayan/portfolio.git",
             "grade": 3
+        },
+        {
+            "id": "c3730622-552b-43c5-bc6a-dee3a244e470",
+            "studentName": "joryn",
+            "course": "devop",
+            "githubUrl": "https://github.com/kjez007/applMobil.git",
+            "grade": 2
         }
     ]
 }

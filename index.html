@@ -50,6 +50,44 @@
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
       }
 
+      /* Messages de notification */
+      .message-box {
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        display: none;
+        align-items: center;
+        gap: 0.75rem;
+        font-weight: 500;
+        animation: slideIn 0.3s ease;
+      }
+      .message-box.show {
+        display: flex;
+      }
+      .message-box.success {
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+      }
+      .message-box.error {
+        background: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+      }
+      .message-box i {
+        font-size: 1.2rem;
+      }
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
       input[type="text"],
       input[type="number"],
       select {
@@ -198,6 +236,7 @@
       <h1>Interface de Test pour ProjetAPI</h1>
 
       <div class="api-section">
+        <div id="create-message" class="message-box"></div>
         <h2><i class="fas fa-plus"></i> Soumettre un nouveau projet</h2>
         <form id="create-project-form">
           <label>Nom de l'étudiant :</label>
@@ -211,12 +250,14 @@
       </div>
 
       <div class="api-section">
+        <div id="filter-message" class="message-box"></div>
         <h2><i class="fas fa-filter"></i> Filtrer par cours</h2>
         <input type="text" id="courseName" placeholder="Bachelor 3 Informatique" />
         <button onclick="getProjectsByCourse(true)"><i class="fas fa-search"></i> Filtrer</button>
       </div>
 
       <div class="api-section">
+        <div id="list-message" class="message-box"></div>
         <h2><i class="fas fa-list"></i> Lister tous les projets</h2>
         <button onclick="getAllProjects()"><i class="fas fa-sync-alt"></i> Rafraîchir la liste</button>
         <ul id="project-list"></ul>
@@ -244,47 +285,100 @@
         if (input.value < 0) input.value = 0;
       }
 
+      function showMessage(elementId, message, isSuccess) {
+        const messageBox = document.getElementById(elementId);
+        messageBox.className = `message-box ${isSuccess ? 'success' : 'error'} show`;
+        messageBox.innerHTML = `
+          <i class="fas fa-${isSuccess ? 'check-circle' : 'exclamation-circle'}"></i>
+          <span>${message}</span>
+        `;
+        setTimeout(() => {
+          messageBox.classList.remove('show');
+        }, 5000);
+      }
+
       document.getElementById("create-project-form").addEventListener("submit", async (e) => {
         e.preventDefault();
         const studentName = document.getElementById("studentName").value.trim();
         const course = document.getElementById("course").value.trim();
         const githubUrl = document.getElementById("githubUrl").value.trim();
 
-        const res = await fetch(`${API_BASE_URL}/projects`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ studentName, course, githubUrl })
-        });
+        try {
+          const res = await fetch(`${API_BASE_URL}/projects`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ studentName, course, githubUrl })
+          });
 
-        const data = await res.json();
-        displayResponse(data);
-        getAllProjects();
-        e.target.reset();
+          const data = await res.json();
+          displayResponse(data);
+          
+          if (data.success) {
+            showMessage('create-message', data.message, true);
+            getAllProjects();
+            e.target.reset();
+          } else {
+            showMessage('create-message', data.message || data.detail?.message, false);
+          }
+        } catch (error) {
+          showMessage('create-message', 'Erreur de connexion au serveur', false);
+        }
       });
 
       async function getAllProjects() {
-        const res = await fetch(`${API_BASE_URL}/projects`);
-        const projects = await res.json();
-        renderProjectList(projects);
-        displayResponse(projects);
+        try {
+          const res = await fetch(`${API_BASE_URL}/projects`);
+          const data = await res.json();
+          
+          if (data.success) {
+            renderProjectList(data.data);
+            showMessage('list-message', data.message, true);
+          } else {
+            showMessage('list-message', data.message || 'Erreur lors de la récupération', false);
+          }
+          displayResponse(data);
+        } catch (error) {
+          showMessage('list-message', 'Erreur de connexion au serveur', false);
+        }
       }
 
       async function getProjectsByCourse(showResponse = false) {
         const courseName = document.getElementById("courseName").value.trim();
         if (!courseName) return getAllProjects();
 
-        const res = await fetch(`${API_BASE_URL}/projects/course/${courseName}`);
-        const data = await res.json();
-        renderProjectList(data);
-        if (showResponse) displayResponse(data);
+        try {
+          const res = await fetch(`${API_BASE_URL}/projects/course/${courseName}`);
+          const data = await res.json();
+          
+          if (data.success) {
+            renderProjectList(data.data);
+            showMessage('filter-message', data.message, true);
+          } else {
+            showMessage('filter-message', data.message || 'Erreur lors du filtrage', false);
+          }
+          if (showResponse) displayResponse(data);
+        } catch (error) {
+          showMessage('filter-message', 'Erreur de connexion au serveur', false);
+        }
       }
 
       async function deleteProjectById(id, button) {
         if (!confirm("Voulez-vous vraiment supprimer ce projet ?")) return;
-        const res = await fetch(`${API_BASE_URL}/projects/${id}`, { method: "DELETE" });
-        if (res.status !== 204) displayResponse(await res.json());
-        else displayResponse({ message: "Projet supprimé." });
-        button.closest("li").remove();
+        
+        try {
+          const res = await fetch(`${API_BASE_URL}/projects/${id}`, { method: "DELETE" });
+          const data = await res.json();
+          
+          if (data.success) {
+            showMessage('list-message', data.message, true);
+            button.closest("li").remove();
+          } else {
+            showMessage('list-message', data.message || data.detail?.message, false);
+          }
+          displayResponse(data);
+        } catch (error) {
+          showMessage('list-message', 'Erreur lors de la suppression', false);
+        }
       }
 
       async function toggleProjectDetails(button, id) {
@@ -295,15 +389,24 @@
           li.querySelector(".project-extra").remove();
           return;
         }
-        const res = await fetch(`${API_BASE_URL}/projects/${id}`);
-        const project = await res.json();
-        const extra = document.createElement("div");
-        extra.className = "project-extra";
-        extra.innerHTML = `
-          <small><strong>GitHub :</strong> <a href="${project.githubUrl}" target="_blank">${project.githubUrl}</a></small>
-        `;
-        li.appendChild(extra);
-        li.classList.add("expanded");
+        
+        try {
+          const res = await fetch(`${API_BASE_URL}/projects/${id}`);
+          const data = await res.json();
+          
+          if (data.success) {
+            const project = data.data;
+            const extra = document.createElement("div");
+            extra.className = "project-extra";
+            extra.innerHTML = `
+              <small><strong>GitHub :</strong> <a href="${project.githubUrl}" target="_blank">${project.githubUrl}</a></small>
+            `;
+            li.appendChild(extra);
+            li.classList.add("expanded");
+          }
+        } catch (error) {
+          showMessage('list-message', 'Erreur lors du chargement des détails', false);
+        }
       }
 
       async function gradeProjectDirect(id) {
@@ -313,13 +416,25 @@
           alert("Veuillez entrer une note valide entre 0 et 20.");
           return;
         }
-        const res = await fetch(`${API_BASE_URL}/projects/${id}/grade`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ grade })
-        });
-        displayResponse(await res.json());
-        getAllProjects();
+        
+        try {
+          const res = await fetch(`${API_BASE_URL}/projects/${id}/grade`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ grade })
+          });
+          const data = await res.json();
+          
+          if (data.success) {
+            showMessage('list-message', data.message, true);
+            getAllProjects();
+          } else {
+            showMessage('list-message', data.message || data.detail?.message, false);
+          }
+          displayResponse(data);
+        } catch (error) {
+          showMessage('list-message', 'Erreur lors de l\'attribution de la note', false);
+        }
       }
 
       function renderProjectList(projects) {
