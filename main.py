@@ -75,6 +75,21 @@ def create_project(project_data: ProjectCreate):
 @app.delete("/projects/{project_id}", status_code=204, tags=["Projects"])
 def delete_project(project_id: str):
     """Supprimer une soumission de projet."""
+# Issue #3: GET /projects/{project_id}
+@app.get("/projects/{project_id}", response_model=Project, tags=["Projects"])
+def get_project_by_id(project_id: str):
+    """Obtenir les détails d'un projet par son ID."""
+    db = read_db()
+    for project in db.get("projects", []):
+        if project["id"] == project_id:
+            return project
+    raise HTTPException(
+        status_code=404, detail=f"Project with ID '{project_id}' not found"
+    )
+# Issue #4: PUT /projects/{project_id}/grade
+@app.put("/projects/{project_id}/grade", response_model=Project, tags=["Projects"])
+def grade_project(project_id: str, grade_update: GradeUpdate):
+    """Permettre à un 'professeur' de noter un projet."""
     db = read_db()
     initial_count = len(db.get("projects", []))
     db["projects"] = [p for p in db["projects"] if p["id"] != project_id]
