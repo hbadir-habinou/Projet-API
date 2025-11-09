@@ -42,8 +42,7 @@ jobs:
             -H "Content-Type: application/json" \
             -d @payload.json )
 
-          # Chemin JQ corrigé et robuste
-          REVIEW_TEXT=$(echo "$RESPONSE" | jq -r '.candidates[0].content.parts[0].text // ""')
+          REVIEW_TEXT=$(echo "$RESPONSE" | jq -r '.candidates[0].content.parts[0].text // "⚠️ Erreur : Impossible d’analyser la réponse de Gemini."')
 
           ERROR=$(echo "$RESPONSE" | jq -r '.error.message // empty')
           if [ -n "$ERROR" ]; then
@@ -69,6 +68,9 @@ jobs:
               body: reviewBody
             });
 
+      # =================================================================
+      # CORRECTION FINALE : Utilisation de 'html_body' au lieu de 'body'
+      # =================================================================
       - name: Send Email Notification (HTML)
         uses: dawidd6/action-send-mail@v3
         with:
@@ -80,7 +82,8 @@ jobs:
           to: ${{ secrets.TEAM_EMAIL_LIST }}
           from: GitHub Actions Bot <${{ secrets.MAIL_USERNAME }}>
           content_type: text/html
-          body: |
+          # On utilise 'html_body' pour que le client de messagerie interprète le HTML
+          html_body: |
             <!DOCTYPE html>
             <html>
             <head>
@@ -92,8 +95,8 @@ jobs:
                 .header h1 { margin: 0; font-size: 22px; }
                 .content { padding: 25px; }
                 .content h2 { color: #0366d6; border-bottom: 1px solid #eaecef; padding-bottom: 10px; }
-                .pr-info { background: #f1f8ff; padding: 15px; border-radius: 6px; margin-bottom: 20px; }
-                pre { background-color: #f6f8fa; padding: 16px; overflow: auto; border-radius: 6px; }
+                .pr-info { background: #f1f8ff; padding: 15px; border-radius: 6px; margin-bottom: 20px; line-height: 1.5; }
+                pre { background-color: #f6f8fa; padding: 16px; overflow: auto; border-radius: 6px; white-space: pre-wrap; word-wrap: break-word; }
                 .footer { padding: 20px; text-align: center; font-size: 12px; color: #6a737d; }
                 a { color: #0366d6; text-decoration: none; }
               </style>
