@@ -136,3 +136,26 @@ def delete_project(project_id: str):
         )
     write_db(db)
     return
+
+
+@app.put("/projects/{project_id}")
+def update_project(project_id: str, updated_data: dict):
+    """Met à jour un projet existant (nom, cours, githubUrl)."""
+    with open("db.json", "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    # Trouver le projet correspondant
+    for project in data["projects"]:
+        if project["id"] == project_id:
+            project["studentName"] = updated_data.get(
+                "studentName", project["studentName"]
+            )
+            project["course"] = updated_data.get("course", project["course"])
+            project["githubUrl"] = updated_data.get("githubUrl", project["githubUrl"])
+
+            with open("db.json", "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=4, ensure_ascii=False)
+
+            return {"message": "Projet mis à jour avec succès", "project": project}
+
+    raise HTTPException(status_code=404, detail="Projet non trouvé")
