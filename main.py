@@ -1,7 +1,7 @@
 # main.py
 import json
 import uuid
-from fastapi import FastAPI, HTTPException  # noqa: F401
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles  # noqa: F401
 from pydantic import BaseModel
