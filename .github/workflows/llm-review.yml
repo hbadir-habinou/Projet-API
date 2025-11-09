@@ -61,11 +61,38 @@ jobs:
             REVIEW_TEXT="🚨 **Erreur Gemini API** : $ERROR"
           fi
 
-          REVIEW_TEXT_ESCAPED=$(echo "$REVIEW_TEXT" | sed 's/`/\\`/g' | sed 's/\$/\\$/g')
+          # Échappement pour JS + HTML
+          REVIEW_TEXT_ESCAPED=$(echo "$REVIEW_TEXT" | sed 's/`/\\`/g' | sed 's/\$/\\$/g' | sed 's/"/\\"/g')
 
           echo "review_text<<EOF" >> $GITHUB_OUTPUT
           echo "$REVIEW_TEXT_ESCAPED" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
+
+          # Version Markdown brute pour conversion HTML
+          echo "$REVIEW_TEXT" > review.md
+
+      - name: Convert Markdown → HTML pour email
+        run: |
+          # pandoc est pré-installé sur ubuntu-latest
+          pandoc review.md -f markdown -t html --standalone --css=<(cat <<'CSS'
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; background:#f6f8fa; margin:0; padding:20px; }
+          .container { max-width: 700px; margin: auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+          .header { background: #0969da; color: white; padding: 30px; text-align: center; }
+          .header h1 { margin:0; font-size: 24px; }
+          .content { padding: 30px; line-height: 1.6; color: #24292f; }
+          table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+          td { padding: 10px; border-bottom: 1px solid #eaecef; }
+          .label { font-weight: 600; color: #57606a; width: 120px; }
+          pre { background: #f6f8fa; padding: 16px; border-radius: 8px; overflow-x: auto; }
+          .footer { background: #f6f8fa; padding: 20px; text-align: center; font-size: 12px; color: #57606a; }
+          CSS
+          ) > review.html
+
+          # On passe le HTML complet à l'étape suivante
+          echo "email_html<<EOF" >> $GITHUB_OUTPUT
+          cat review.html >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        id: convert
 
       - name: Comment on PR
         uses: actions/github-script@v7
@@ -100,7 +127,7 @@ jobs:
               body: reviewBody
             });
 
-      - name: Send Email Notification
+      - name: Send Email Notification (HTML + CSS sexy)
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
@@ -110,18 +137,41 @@ jobs:
           subject: "🤖 Revue IA • PR #${{ github.event.pull_request.number }} par @${{ github.actor }}"
           to: ${{ secrets.TEAM_EMAIL_LIST }}
           from: GitHub Actions Bot <${{ secrets.MAIL_USERNAME }}>
-          body: |
-            Une nouvelle revue de code a été générée par Gemini pour la Pull Request #${{ github.event.pull_request.number }}.
+          html_body: |
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta charset="utf-8">
+              <title>Revue IA PR #${{ github.event.pull_request.number }}</title>
+            </head>
+            <body>
+              <div class="container">
+                <div class="header">
+                  <h1>🤖 Revue de code IA</h1>
+                  <p style="margin:10px 0 0; font-size:16px;">PR #${{ github.event.pull_request.number }} • ${{ github.event.pull_request.title }}</p>
+                </div>
+                <div class="content">
+                  <table>
+                    <tr><td class="label">👤 Auteur</td><td>@${{ github.actor }}</td></tr>
+                    <tr><td class="label">📝 Titre</td><td>${{ github.event.pull_request.title }}</td></tr>
+                    <tr><td class="label">🔗 Lien PR</td><td><a href="${{ github.event.pull_request.html_url }}" style="color:#0969da;">Ouvrir la Pull Request</a></td></tr>
+                    <tr><td class="label">⏰ Date</td><td>${{ github.event.pull_request.updated_at }}</td></tr>
+                  </table>
 
-            👤 Auteur : @${{ github.actor }}
-            📝 Titre : ${{ github.event.pull_request.title }}
-            🔗 Lien : ${{ github.event.pull_request.html_url }}
+                  <h2 style="color:#24292f; border-bottom:2px solid #0969da; padding-bottom:8px;">Analyse Gemini</h2>
 
-            ───────────────────────────────
-            Revue IA :
-            ───────────────────────────────
+                  ${{ steps.convert.outputs.email_html }}
 
-            ${{ steps.call_llm.outputs.review_text }}
-
-            ───────────────────────────────
-            Généré automatiquement par le workflow GitHub Actions.
+                  <div style="margin-top:40px; padding:20px; background:#f0f9ff; border-left:5px solid #0969da; border-radius:8px;">
+                    <p><strong>💡 Astuce :</strong> Cliquez sur le lien ci-dessus pour commenter directement sur GitHub !</p>
+                  </div>
+                </div>
+                <div class="footer">
+                  Généré automatiquement par <strong>${{ github.workflow }}</strong> •
+                  <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" style="color:#0969da;">Voir le run #${{ github.run_id }}</a>
+                </div>
+              </div>
+            </body>
+            </html>
+          # Option pour forcer l’envoi en HTML pur
+          content_type: text/html
