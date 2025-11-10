@@ -41,6 +41,13 @@
             "course": "assembleur",
             "githubUrl": "https://github.com/jordyn/assembleur.git",
             "grade": null
+        },
+        {
+            "id": "69bc5fce-4c57-4623-b18c-fd78d4648e96",
+            "studentName": "Ondoa",
+            "course": "B2",
+            "githubUrl": "https://github.com/tamses4/static_docker.git",
+            "grade": 12
         }
     ]
 }

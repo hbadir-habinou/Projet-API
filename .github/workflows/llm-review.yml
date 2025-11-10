@@ -1,0 +1,153 @@
+name: Revue de Code par IA et Notification
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    branches: [ develop ]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  review_and_notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get Pull Request Diff
+        id: get_diff
+        run: |
+          git diff ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} > pr_diff.txt
+          echo "diff_content<<EOF" >> $GITHUB_OUTPUT
+          cat pr_diff.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Call Gemini API for Code Review
+        id: call_llm
+        env:
+          PROMPT_TEXT: "Tu es un relecteur de code expert en Python et FastAPI. Analyse ce diff. Si le code est bon, fournis des pistes d’amélioration. Si le code contient des bugs ou des mauvaises pratiques, liste-les clairement. Réponds en français et utilise du Markdown pour formater ta réponse."
+          DIFF_CONTENT: ${{ steps.get_diff.outputs.diff_content }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          jq -n \
+            --arg prompt "$PROMPT_TEXT" \
+            --arg diff "$DIFF_CONTENT" \
+            '{ "contents": [ { "parts": [ { "text": $prompt }, { "text": $diff } ] } ] }' > payload.json
+
+          RESPONSE=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d @payload.json) # CORRECTION 1: Ajout de la parenthèse fermante
+
+          REVIEW_TEXT=$(echo "$RESPONSE" | jq -r '.candidates[0].content.parts[0].text // "⚠️ Erreur : Impossible d’analyser la réponse de Gemini."')
+
+          ERROR=$(echo "$RESPONSE" | jq -r '.error.message // empty')
+          if [ -n "$ERROR" ]; then
+            REVIEW_TEXT="🚨 **Erreur Gemini API** : $ERROR"
+          fi
+
+          echo "review_text<<EOF" >> $GITHUB_OUTPUT
+          echo "$REVIEW_TEXT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        env:
+          REVIEW_TEXT: ${{ steps.call_llm.outputs.review_text }}
+        with:
+          script: |
+            const reviewText = process.env.REVIEW_TEXT || "Aucune revue générée.";
+            // CORRECTION 2: Utilisation de la concaténation standard (+) au lieu des backticks (`)
+            // pour éviter les problèmes d'échappement YAML/JavaScript liés aux expressions GitHub Actions
+            const reviewBody = '### 🤖 Revue de code par l\'IA (Gemini)\n\nBonjour @' + context.actor + ' !\n\nVoici l\'analyse automatique :\n\n---\n\n' + reviewText + '\n\n---\n_Généré par ' + context.workflow + '_';
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: reviewBody
+            });
+
+# =================================================================
+# NOUVELLE ÉTAPE CORRIGÉE : Conversion du Markdown en HTML pour l'e-mail
+# On utilise un script Python inline pour éviter de créer un fichier .py
+# qui serait analysé par Mypy dans le workflow ci.yml.
+# =================================================================
+      - name: Convert Markdown to HTML (Inline Script)
+        id: run_conversion
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Run Conversion
+        run: |
+          # Installe la librairie de conversion Markdown
+          pip install markdown
+
+          # Exécute le script Python directement en ligne
+          # Le script lit l'entrée standard (stdin) et écrit le HTML sur la sortie standard (stdout)
+          HTML_REVIEW=$(echo "${{ steps.call_llm.outputs.review_text }}" | python -c "import markdown, sys; print(markdown.markdown(sys.stdin.read()))")
+
+          # Stocke le HTML converti dans une variable d'output
+          echo "html_review<<EOF" >> $GITHUB_OUTPUT
+          echo "$HTML_REVIEW" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+# =================================================================
+# ÉTAPE MODIFIÉE : Envoi de l'e-mail avec le HTML converti
+# =================================================================
+      - name: Send Email Notification (HTML)
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: "🤖 Revue IA • PR #${{ github.event.pull_request.number }} par @${{ github.actor }}"
+          to: ${{ secrets.TEAM_EMAIL_LIST }}
+          from: GitHub Actions Bot <${{ secrets.MAIL_USERNAME }}>
+          content_type: text/html
+          html_body: |
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta charset="UTF-8">
+              <style>
+                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"; background-color: #f6f8fa; margin: 0; padding: 20px; }
+                .container { max-width: 680px; margin: auto; background: white; border-radius: 8px; box-shadow: 0 2px 15px rgba(0,0,0,0.07); border: 1px solid #eaecef; }
+                .header { background: #24292e; color: white; padding: 20px; text-align: center; border-top-left-radius: 8px; border-top-right-radius: 8px; }
+                .header h1 { margin: 0; font-size: 22px; }
+                .content { padding: 25px; }
+                .content h2 { color: #0366d6; border-bottom: 1px solid #eaecef; padding-bottom: 10px; margin-top: 0; }
+                .pr-info { background: #f1f8ff; padding: 15px; border-radius: 6px; margin-bottom: 20px; line-height: 1.5; border: 1px solid #c8e1ff; }
+                pre { background-color: #f6f8fa; padding: 16px; overflow: auto; border-radius: 6px; white-space: pre-wrap; word-wrap: break-word; border: 1px solid #eaecef; }
+                a { color: #0366d6; text-decoration: none; }
+                strong { font-weight: 600; }
+
+                /* Styles pour le contenu Markdown converti */
+                .review-content p { margin-top: 0; margin-bottom: 1em; }
+                .review-content ul, .review-content ol { padding-left: 20px; }
+                .review-content h1, .review-content h2, .review-content h3 { color: #0366d6; border-bottom: 1px solid #eaecef; padding-bottom: 5px; margin-top: 20px; }
+                .review-content pre, .review-content code { background-color: #f6f8fa; padding: 16px; overflow: auto; border-radius: 6px; white-space: pre-wrap; word-wrap: break-word; border: 1px solid #eaecef; }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <div class="header"><h1>Revue de Code par l'IA</h1></div>
+                <div class="content">
+                  <div class="pr-info">
+                    <strong>Pull Request :</strong> <a href="${{ github.event.pull_request.html_url }}">#${{ github.event.pull_request.number }} - ${{ github.event.pull_request.title }}</a><br>
+                    <strong>Auteur :</strong> @${{ github.actor }}
+                  </div>
+                  <h2>Analyse de Gemini</h2>
+                  <div class="review-content">
+                    ${{ steps.run_conversion.outputs.html_review }}
+                  </div>
+                </div>
+                <div class="footer">
+                  Généré par le workflow "${{ github.workflow }}"
+                </div>
+              </div>
+            </body>
+            </html>

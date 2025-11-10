@@ -24,7 +24,7 @@ venv/Scripts/activate
 pip install "fastapi[all]"
 pip install fastapi
 
-uvicorn main:app --reload    pour lancer
+uvicorn main:app --reload
 
 pip install flake8 black
 
