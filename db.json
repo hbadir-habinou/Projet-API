@@ -20,6 +20,20 @@
             "course": "c#",
             "githubUrl": "https://github.com/rayan/portfolio.git",
             "grade": 3
+        },
+        {
+            "id": "8526eb82-fec9-454d-93ff-8a68f5e0fdcc",
+            "studentName": "Ondoa",
+            "course": "B3",
+            "githubUrl": "https://github.com/tamses4/static_docker.git",
+            "grade": null
+        },
+        {
+            "id": "99ad3031-1d3a-41d9-b645-e4c1dbf444c7",
+            "studentName": "Ondoa",
+            "course": "B3",
+            "githubUrl": "https://github.com/tamses4/static_docker.git",
+            "grade": null
         }
     ]
 }
