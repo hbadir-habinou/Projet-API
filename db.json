@@ -9,17 +9,10 @@
         },
         {
             "id": "a6e5c2df-8157-42e4-92ac-6d6eb39bd3dc",
-            "studentName": "tamar",
-            "course": "uml",
+            "studentName": "tamses",
+            "course": "uml2",
             "githubUrl": "https://github.com/tamses/portfolio.git",
             "grade": 12
-        },
-        {
-            "id": "b1f84f43-ff13-4b74-8a5d-0d4bd964a6e7",
-            "studentName": "gabrielle",
-            "course": "react",
-            "githubUrl": "https://github.com/gabi/uml_course.git",
-            "grade": 20
         },
         {
             "id": "51867d44-5077-4130-b3bc-4bd9aa989cf0",
@@ -33,13 +26,6 @@
             "studentName": "habiba",
             "course": "sql",
             "githubUrl": "https://github.com/habi/portfolio.git",
-            "grade": null
-        },
-        {
-            "id": "380ac830-35af-421a-9e2a-49d1eb88d30e",
-            "studentName": "jordyn",
-            "course": "assembleur",
-            "githubUrl": "https://github.com/jordyn/assembleur.git",
             "grade": null
         }
     ]

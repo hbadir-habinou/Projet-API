@@ -530,7 +530,7 @@
           <button class="undo-btn" onclick="undoDelete('${id}')">Annuler</button>`;
         notif.className = "show warning";
         deletedProjects[id] = {
-          timeout: setTimeout(() => finalizeDelete(id, name), 5 * 60 ),
+          timeout: setTimeout(() => finalizeDelete(id, name), 5 * 300 ),
           name,
         };
       }
