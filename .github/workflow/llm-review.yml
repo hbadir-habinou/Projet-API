@@ -40,7 +40,7 @@ jobs:
 
           RESPONSE=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}" \
             -H "Content-Type: application/json" \
-            -d @payload.json )
+            -d @payload.json) # CORRECTION 1: Ajout de la parenthèse fermante
 
           REVIEW_TEXT=$(echo "$RESPONSE" | jq -r '.candidates[0].content.parts[0].text // "⚠️ Erreur : Impossible d’analyser la réponse de Gemini."')
 
@@ -60,7 +60,9 @@ jobs:
         with:
           script: |
             const reviewText = process.env.REVIEW_TEXT || "Aucune revue générée.";
-            const reviewBody = `### 🤖 Revue de code par l'IA (Gemini)\n\nBonjour @${{ github.actor }} !\n\nVoici l'analyse automatique :\n\n---\n\n${reviewText}\n\n---\n_Généré par ${{ github.workflow }}_`;
+            // CORRECTION 2: Utilisation de la concaténation de chaînes standard (+) au lieu des backticks (`)
+            // pour éviter les problèmes d'échappement YAML/JavaScript avec les expressions ${{ ... }}
+            const reviewBody = '### 🤖 Revue de code par l\'IA (Gemini)\n\nBonjour @' + '${{ github.actor }}' + ' !\n\nVoici l\'analyse automatique :\n\n---\n\n' + reviewText + '\n\n---\n_Généré par ${{ github.workflow }}_';
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
