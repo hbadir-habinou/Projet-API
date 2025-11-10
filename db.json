@@ -1,25 +1,46 @@
 {
     "projects": [
         {
-            "id": "649390dd-bedb-4729-b85c-32cca0a32f9f",
-            "studentName": "tamar",
-            "course": "git",
-            "githubUrl": "https://github.com.tamses/portfolio.git",
-            "grade": 0
-        },
-        {
             "id": "1b1c5e35-6ced-46ec-847f-2000ebc4d945",
             "studentName": "zidane",
             "course": "git",
             "githubUrl": "https://github.com.zidane2202/portfolio.git",
-            "grade": 10
+            "grade": 20
         },
         {
-            "id": "2e870641-bacb-4565-b5b4-3d5db6b0f96c",
+            "id": "a6e5c2df-8157-42e4-92ac-6d6eb39bd3dc",
+            "studentName": "tamar",
+            "course": "uml",
+            "githubUrl": "https://github.com/tamses/portfolio.git",
+            "grade": 12
+        },
+        {
+            "id": "b1f84f43-ff13-4b74-8a5d-0d4bd964a6e7",
+            "studentName": "gabrielle",
+            "course": "react",
+            "githubUrl": "https://github.com/gabi/uml_course.git",
+            "grade": 20
+        },
+        {
+            "id": "51867d44-5077-4130-b3bc-4bd9aa989cf0",
             "studentName": "rayan",
-            "course": "c#",
+            "course": "php",
             "githubUrl": "https://github.com/rayan/portfolio.git",
-            "grade": 3
+            "grade": null
+        },
+        {
+            "id": "c4104402-03b8-4f8a-9399-9e7b19572f95",
+            "studentName": "habiba",
+            "course": "sql",
+            "githubUrl": "https://github.com/habi/portfolio.git",
+            "grade": null
+        },
+        {
+            "id": "380ac830-35af-421a-9e2a-49d1eb88d30e",
+            "studentName": "jordyn",
+            "course": "assembleur",
+            "githubUrl": "https://github.com/jordyn/assembleur.git",
+            "grade": null
         }
     ]
 }
