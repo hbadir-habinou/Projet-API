@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Interface de Test pour ProjetAPI</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Segoe UI", Roboto, Arial, sans-serif;
+        margin: 0;
+        background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%);
+        min-height: 100vh;
+        color: #1a202c;
+      }
+
+      .container {
+        max-width: 1300px;
+        margin: 2rem auto;
+        padding: 2rem;
+      }
+
+      h1 {
+        text-align: center;
+        font-size: 2.5rem;
+        margin-bottom: 2rem;
+        color: #2d3748;
+      }
+
+      h2 {
+        font-size: 1.5rem;
+        margin-bottom: 1.5rem;
+        border-bottom: 3px solid #a1c4fd;
+        padding-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      h2 i {
+        color: #667eea;
+      }
+
+      .api-section {
+        background: #fff;
+        border-radius: 16px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+      }
+
+      input[type="text"],
+      input[type="number"],
+      select {
+        width: 100%;
+        padding: 12px 16px;
+        margin-top: 0.5rem;
+        border-radius: 8px;
+        border: 2px solid #e2e8f0;
+        background: #f7fafc;
+        font-size: 1rem;
+        transition: border-color 0.3s ease;
+      }
+
+      input:focus,
+      select:focus {
+        border-color: #667eea;
+        outline: none;
+      }
+
+      button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        cursor: pointer;
+        margin-top: 1rem;
+        font-size: 1rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+      }
+
+      button:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+      }
+
+      /* === LISTE DES PROJETS === */
+      #project-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 1.5rem;
+        list-style: none;
+        padding: 0;
+      }
+
+      #project-list li {
+        background: #ffffff;
+        border: 2px solid #e2e8f0;
+        border-radius: 14px;
+        box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        overflow: hidden;
+      }
+
+      #project-list li:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.12);
+      }
+
+      .project-content {
+        padding: 1.2rem 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      .project-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .badge {
+        padding: 6px 10px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        color: white;
+        font-weight: 600;
+      }
+
+      .badge.green {
+        background: #38a169;
+      }
+
+      .badge.orange {
+        background: #ed8936;
+      }
+
+      .badge.red {
+        background: #e53e3e;
+      }
+
+      .badge.gray {
+        background: #718096;
+      }
+
+      .project-details small {
+        display: block;
+        color: #4a5568;
+      }
+
+      .project-actions-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        justify-content: space-between;
+      }
+
+      .project-actions-grid button {
+        flex: 1;
+        min-width: 120px;
+      }
+
+      .delete-btn {
+        background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
+      }
+
+      .edit-btn {
+        background: linear-gradient(135deg, #f6ad55 0%, #dd6b20 100%);
+      }
+
+      .project-extra {
+        background: #f9fafb;
+        border-top: 1px solid #e2e8f0;
+        padding: 1rem 1.5rem;
+        font-size: 0.9rem;
+        animation: slideDown 0.3s ease;
+      }
+
+      @keyframes slideDown {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* === NOTIFICATIONS === */
+      #notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 25px;
+        border-radius: 8px;
+        font-weight: 600;
+        color: white;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        opacity: 0;
+        transform: translateY(-20px);
+        transition: all 0.4s ease;
+        z-index: 9999;
+      }
+
+      #notification.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      #notification.success {
+        background: linear-gradient(135deg, #38a169, #2f855a);
+      }
+
+      #notification.error {
+        background: linear-gradient(135deg, #e53e3e, #c53030);
+      }
+
+      #notification.warning {
+        background: linear-gradient(135deg, #d69e2e, #b7791f);
+      }
+
+      #notification.hidden {
+        display: none;
+      }
+
+      /* === MODAL D'ÉDITION === */
+      #edit-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        justify-content: center;
+        align-items: center;
+        z-index: 9998;
+      }
+
+      .modal-content {
+        background: #fff;
+        padding: 2rem;
+        border-radius: 12px;
+        width: 400px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+      }
+
+      .modal-content h3 {
+        margin-top: 0;
+        color: #2d3748;
+        margin-bottom: 1rem;
+      }
+
+      .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+        margin-top: 1.5rem;
+      }
+
+      .cancel-btn {
+        background: #e2e8f0;
+        color: #2d3748;
+      }
+
+      .cancel-btn:hover {
+        background: #cbd5e0;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="notification" class="hidden"></div>
+
+    <div class="container">
+      <h1>Interface de Test pour ProjetAPI</h1>
+
+      <!-- === Formulaire d'ajout === -->
+      <div class="api-section">
+        <h2><i class="fas fa-plus"></i> Soumettre un nouveau projet</h2>
+        <form id="create-project-form">
+          <label>Nom de l'étudiant :</label>
+          <input type="text" id="studentName" required placeholder="Jean Dupont" />
+          <label>Cours :</label>
+          <input type="text" id="course" required placeholder="Bachelor 3 Informatique" />
+          <label>URL GitHub :</label>
+          <input type="text" id="githubUrl" required placeholder="https://github.com/..." />
+          <button type="submit"><i class="fas fa-save"></i> Créer le projet</button>
+        </form>
+      </div>
+
+      <!-- === Filtrer === -->
+      <div class="api-section">
+        <h2><i class="fas fa-filter"></i> Filtrer par cours</h2>
+        <input type="text" id="courseName" placeholder="Bachelor 3 Informatique" />
+        <button onclick="getProjectsByCourse(true)"><i class="fas fa-search"></i> Filtrer</button>
+      </div>
+
+      <!-- === Liste === -->
+      <div class="api-section">
+        <h2><i class="fas fa-list"></i> Lister tous les projets</h2>
+        <button onclick="getAllProjects()"><i class="fas fa-sync-alt"></i> Rafraîchir la liste</button>
+        <ul id="project-list"></ul>
+      </div>
+
+      <div class="api-section">
+        <h2><i class="fas fa-code"></i> Résultats de l'API</h2>
+        <pre id="api-response">Les réponses des requêtes API apparaîtront ici...</pre>
+      </div>
+    </div>
+
+    <!-- === MODAL MODIFICATION === -->
+    <div id="edit-modal">
+      <div class="modal-content">
+        <h3><i class="fas fa-edit"></i> Modifier le projet</h3>
+        <form id="edit-form">
+          <input type="hidden" id="edit-id" />
+          <label>Nom de l'étudiant :</label>
+          <input type="text" id="edit-name" required />
+          <label>Cours :</label>
+          <input type="text" id="edit-course" required />
+          <label>URL GitHub :</label>
+          <input type="text" id="edit-github" required />
+          <div class="modal-actions">
+            <button type="button" class="cancel-btn" onclick="closeEditModal()">Annuler</button>
+            <button type="submit"><i class="fas fa-check"></i> Enregistrer</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      const API_BASE_URL = "http://127.0.0.1:8000";
+      const projectListElement = document.getElementById("project-list");
+
+      function showNotification(message, type = "success", duration = 3000) {
+        const notif = document.getElementById("notification");
+        notif.innerHTML = message;
+        notif.className = `show ${type}`;
+        if (duration !== 0) setTimeout(() => (notif.className = "hidden"), duration);
+      }
+
+      function prettifyJson(data) {
+        return JSON.stringify(data, null, 2);
+      }
+
+      function displayResponse(data) {
+        document.getElementById("api-response").textContent = prettifyJson(data);
+      }
+
+      function limitGrade(input) {
+        if (input.value > 20) input.value = 20;
+        if (input.value < 0) input.value = 0;
+      }
+
+      // === AJOUT ===
+      document.getElementById("create-project-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const studentName = document.getElementById("studentName").value.trim();
+        const course = document.getElementById("course").value.trim();
+        const githubUrl = document.getElementById("githubUrl").value.trim();
+
+        try {
+          const res = await fetch(`${API_BASE_URL}/projects`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ studentName, course, githubUrl }),
+          });
+          const data = await res.json();
+          showNotification(`✅ Projet ajouté : ${studentName}`, "success");
+          displayResponse(data);
+          getAllProjects();
+          e.target.reset();
+        } catch (err) {
+          showNotification("❌ " + err.message, "error");
+        }
+      });
+
+      // === LISTER ===
+      async function getAllProjects() {
+        const res = await fetch(`${API_BASE_URL}/projects`);
+        const projects = await res.json();
+        renderProjectList(projects);
+      }
+
+      // === FILTRAGE ===
+      async function getProjectsByCourse(showResponse = false) {
+        const courseName = document.getElementById("courseName").value.trim();
+        if (!courseName) return getAllProjects();
+        const res = await fetch(`${API_BASE_URL}/projects/course/${courseName}`);
+        const data = await res.json();
+        renderProjectList(data);
+        if (showResponse) displayResponse(data);
+        showNotification(`🔍 Filtré par cours : ${courseName}`, "success");
+      }
+
+      // === RENDER ===
+      function renderProjectList(projects) {
+        projectListElement.innerHTML = "";
+        if (!projects.length) {
+          projectListElement.innerHTML =
+            `<li style="text-align:center;color:#718096;padding:2rem;"><em>Aucun projet trouvé.</em></li>`;
+          return;
+        }
+
+        projects.forEach((p) => {
+          const badgeColor =
+            p.grade === null
+              ? "gray"
+              : p.grade >= 16
+              ? "green"
+              : p.grade >= 12
+              ? "orange"
+              : "red";
+
+          const li = document.createElement("li");
+          li.innerHTML = `
+            <div class="project-content">
+              <div class="project-header">
+                <strong>${p.studentName}</strong>
+                <span class="badge ${badgeColor}">${p.grade !== null ? p.grade + "/20" : "Non noté"}</span>
+              </div>
+              <div class="project-details">
+                <small><strong>Cours :</strong> ${p.course}</small>
+                <small><strong>ID :</strong> ${p.id}</small>
+              </div>
+              <div class="project-actions-grid">
+                <input type="number" id="grade-${p.id}" placeholder="Note" min="0" max="20" oninput="limitGrade(this)">
+                <button onclick="toggleProjectDetails(this, '${p.id}')"><i class="fas fa-eye"></i> Détails</button>
+                <button onclick="gradeProjectDirect('${p.id}')"><i class="fas fa-star"></i> Noter</button>
+                <button class="edit-btn" onclick="openEditModal('${p.id}', '${p.studentName}', '${p.course}', '${p.githubUrl}')"><i class="fas fa-pen"></i> Modifier</button>
+                <button class="delete-btn" onclick="deleteProjectById('${p.id}', this)"><i class="fas fa-trash"></i> Supprimer</button>
+              </div>
+            </div>`;
+          projectListElement.appendChild(li);
+        });
+      }
+
+      // === DÉTAILS ===
+      async function toggleProjectDetails(button, id) {
+        const li = button.closest("li");
+        const alreadyExpanded = li.classList.contains("expanded");
+        if (alreadyExpanded) {
+          li.classList.remove("expanded");
+          li.querySelector(".project-extra").remove();
+          return;
+        }
+        const res = await fetch(`${API_BASE_URL}/projects/${id}`);
+        const project = await res.json();
+        const extra = document.createElement("div");
+        extra.className = "project-extra";
+        extra.innerHTML = `<strong>GitHub :</strong> <a href="${project.githubUrl}" target="_blank">${project.githubUrl}</a>`;
+        li.appendChild(extra);
+        li.classList.add("expanded");
+      }
+
+      // === NOTER ===
+      async function gradeProjectDirect(id) {
+        const gradeInput = document.getElementById(`grade-${id}`);
+        const grade = parseFloat(gradeInput.value);
+        if (isNaN(grade) || grade < 0 || grade > 20)
+          return showNotification("⚠️ Note invalide (0-20)", "error");
+        const res = await fetch(`${API_BASE_URL}/projects/${id}/grade`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ grade }),
+        });
+        showNotification(`⭐ Note mise à jour : ${grade}/20`, "success");
+        getAllProjects();
+      }
+
+      // === MODIFIER ===
+      function openEditModal(id, name, course, githubUrl) {
+        document.getElementById("edit-id").value = id;
+        document.getElementById("edit-name").value = name;
+        document.getElementById("edit-course").value = course;
+        document.getElementById("edit-github").value = githubUrl;
+        document.getElementById("edit-modal").style.display = "flex";
+      }
+
+      function closeEditModal() {
+        document.getElementById("edit-modal").style.display = "none";
+      }
+
+      document.getElementById("edit-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const id = document.getElementById("edit-id").value;
+        const name = document.getElementById("edit-name").value.trim();
+        const course = document.getElementById("edit-course").value.trim();
+        const githubUrl = document.getElementById("edit-github").value.trim();
+
+        try {
+          const res = await fetch(`${API_BASE_URL}/projects/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ studentName: name, course, githubUrl }),
+          });
+          if (!res.ok) throw new Error("Erreur lors de la mise à jour.");
+          closeEditModal();
+          showNotification(`✏️ Projet "${name}" modifié avec succès !`, "success");
+          getAllProjects();
+        } catch (err) {
+          showNotification("❌ " + err.message, "error");
+        }
+      });
+
+      // === SUPPRESSION ===
+      let deletedProjects = {};
+      async function deleteProjectById(id, button) {
+        const li = button.closest("li");
+        const name = li.querySelector("strong").textContent;
+        if (!confirm(`Supprimer le projet "${name}" ?`)) return;
+        li.remove();
+        showUndoNotification(id, name);
+      }
+
+      function showUndoNotification(id, name) {
+        const notif = document.getElementById("notification");
+        notif.innerHTML = `🕒 Projet <strong>${name}</strong> en attente de suppression.
+          <button class="undo-btn" onclick="undoDelete('${id}')">Annuler</button>`;
+        notif.className = "show warning";
+        deletedProjects[id] = {
+          timeout: setTimeout(() => finalizeDelete(id, name), 5 * 60 ),
+          name,
+        };
+      }
+
+      function undoDelete(id) {
+        const deleted = deletedProjects[id];
+        if (!deleted) return;
+        clearTimeout(deleted.timeout);
+        delete deletedProjects[id];
+        showNotification(`✅ Suppression du projet "${deleted.name}" annulée.`, "success");
+        getAllProjects();
+      }
+
+      async function finalizeDelete(id, name) {
+        const res = await fetch(`${API_BASE_URL}/projects/${id}`, { method: "DELETE" });
+        if (res.status === 204) {
+          showNotification(`🗑️ Projet "${name}" supprimé définitivement.`, "success");
+          delete deletedProjects[id];
+        } else {
+          showNotification("❌ Erreur lors de la suppression.", "error");
+        }
+      }
+
+      window.onload = getAllProjects;
+    </script>
+  </body>
+</html>

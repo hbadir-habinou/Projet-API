@@ -1,0 +1,45 @@
+{
+    "projects": [
+        {
+            "id": "1b1c5e35-6ced-46ec-847f-2000ebc4d945",
+            "studentName": "zidane",
+            "course": "git",
+            "githubUrl": "https://github.com.zidane2202/portfolio.git",
+            "grade": 10
+        },
+        {
+            "id": "2e870641-bacb-4565-b5b4-3d5db6b0f96c",
+            "studentName": "rayan",
+            "course": "c#",
+            "githubUrl": "https://github.com/rayan/portfolio.git",
+            "grade": 3
+        },
+        {
+            "id": "5b9f7c2e-2bf0-4e5c-b5a1-6a2e8e92a094",
+            "studentName": "habiba",
+            "course": "git",
+            "githubUrl": "https://github.com/hbadir-habinou/Projet-API",
+            "grade": 20
+        },
+            "id": "8526eb82-fec9-454d-93ff-8a68f5e0fdcc",
+            "studentName": "Ondoa",
+            "course": "B3",
+            "githubUrl": "https://github.com/tamses4/static_docker.git",
+            "grade": 17
+        },
+        {
+            "id": "d303d07f-3809-4a92-952b-10a19027ca11",
+            "studentName": "Tamar",
+            "course": "B2",
+            "githubUrl": "https://github.com/tamses4/static_docker.git",
+            "grade": null
+        },
+        {
+            "id": "69bc5fce-4c57-4623-b18c-fd78d4648e96",
+            "studentName": "Ondoa",
+            "course": "B2",
+            "githubUrl": "https://github.com/tamses4/static_docker.git",
+            "grade": 12
+        }
+    ]
+}
